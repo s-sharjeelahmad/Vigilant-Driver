@@ -1,203 +1,231 @@
 """
-Merge All Processed Datasets
-=============================
-Merges all internet-sourced datasets into training-ready format for Abrar.
+Simple Dataset Merger - Creates train/val/test splits with proper format
 """
-
+import shutil
 from pathlib import Path
-from ai_components.data_collection.dataset_merger import DatasetMerger
-from ai_components.utils.config import get_config
-from ai_components.utils.helpers import save_json
 import json
+import random
+from collections import defaultdict
+from tqdm import tqdm
+
+# Set random seed for reproducibility
+random.seed(42)
+
+# Paths
+PROCESSED_DIR = Path("datasets/processed")
+OUTPUT_DIR = Path("datasets/processed/merged_final")
+
+# Class mapping (standardize all to these 3 classes)
+CLASS_MAPPING = {
+    'alert': 'ALERT',
+    'drowsy': 'DROWSY', 
+    'distracted': 'DISTRACTED',
+    'notdrowsy': 'ALERT',  # NTHUDDD uses this
+    'active': 'ALERT',  # UTA-RLDD uses this
+    'fatigue': 'DROWSY',  # UTA-RLDD uses this
+}
+
+# Dataset configurations (simplified - structure doesn't matter now)
+DATASETS = {
+    'state_farm': {'path': PROCESSED_DIR / 'state_farm'},
+    'dmd': {'path': PROCESSED_DIR / 'dmd'},
+    'nthuddd': {'path': PROCESSED_DIR / 'nthuddd'},
+    'yawdd': {'path': PROCESSED_DIR / 'yawdd'},
+    'uta_rldd': {'path': PROCESSED_DIR / 'uta_rldd'},
+    'vicomtech_drowsy': {'path': PROCESSED_DIR / 'vicomtech_drowsy'}
+}
+
+def collect_images_from_dataset(dataset_name, dataset_info):
+    """Collect all images from a dataset organized by class - ignore existing splits, collect all"""
+    images_by_class = defaultdict(list)
+    dataset_path = dataset_info['path']
+    
+    if not dataset_path.exists():
+        print(f"⚠️  Dataset not found: {dataset_name} at {dataset_path}")
+        return images_by_class
+    
+    print(f"\n📂 Processing {dataset_name}...")
+    
+    # For all datasets, recursively find all images and organize by their parent folder name
+    # This works for flat, nested, and split structures
+    for img_path in dataset_path.rglob("*.jpg"):
+        # Get the immediate parent folder name (should be a class name)
+        parent_name = img_path.parent.name.lower()
+        
+        # Map to standard class
+        if parent_name in CLASS_MAPPING:
+            standard_class = CLASS_MAPPING[parent_name]
+            images_by_class[standard_class].append({
+                'path': img_path,
+                'source': dataset_name
+            })
+    
+    # Also check for png and jpeg
+    for ext in ['*.png', '*.jpeg']:
+        for img_path in dataset_path.rglob(ext):
+            parent_name = img_path.parent.name.lower()
+            if parent_name in CLASS_MAPPING:
+                standard_class = CLASS_MAPPING[parent_name]
+                # Avoid duplicates
+                if not any(d['path'] == img_path for d in images_by_class[standard_class]):
+                    images_by_class[standard_class].append({
+                        'path': img_path,
+                        'source': dataset_name
+                    })
+    
+    for class_name, imgs in images_by_class.items():
+        print(f"  {class_name}: {len(imgs)} images")
+    
+    return images_by_class
+
+def split_data(images_list, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15):
+    """Split images into train/val/test"""
+    random.shuffle(images_list)
+    
+    total = len(images_list)
+    train_end = int(total * train_ratio)
+    val_end = train_end + int(total * val_ratio)
+    
+    return {
+        'train': images_list[:train_end],
+        'val': images_list[train_end:val_end],
+        'test': images_list[val_end:]
+    }
+
+def copy_images(splits, output_dir):
+    """Copy images to final structure"""
+    stats = defaultdict(lambda: defaultdict(int))
+    
+    for split_name, classes in splits.items():
+        print(f"\n📋 Copying {split_name} split...")
+        
+        for class_name, images in classes.items():
+            dest_dir = output_dir / split_name / class_name
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            
+            for idx, img_info in enumerate(tqdm(images, desc=f"  {class_name}")):
+                src_path = img_info['path']
+                source = img_info['source']
+                
+                # Create unique filename: source_classname_originalname
+                new_name = f"{source}_{class_name.lower()}_{src_path.name}"
+                dest_path = dest_dir / new_name
+                
+                # Copy image
+                shutil.copy2(src_path, dest_path)
+                
+                # Update stats
+                stats[split_name][class_name] += 1
+                stats['sources'][source] += 1
+    
+    return stats
 
 def main():
-    print("="*70)
-    print("MERGING ALL DATASETS FOR ABRAR")
-    print("="*70)
+    print("="*60)
+    print("CREATING FINAL MERGED DATASET")
+    print("="*60)
     
-    config = get_config()
-    merger = DatasetMerger(config)
+    # Step 1: Collect all images from all datasets
+    print("\n🔍 Step 1: Collecting images from all datasets...")
+    all_images = defaultdict(list)
+    source_stats = defaultdict(int)
     
-    processed_dir = Path("datasets/processed")
+    for dataset_name, dataset_info in DATASETS.items():
+        images = collect_images_from_dataset(dataset_name, dataset_info)
+        for class_name, img_list in images.items():
+            all_images[class_name].extend(img_list)
+            source_stats[dataset_name] += len(img_list)
     
-    # Define all available datasets
-    datasets_to_merge = {
-        'state_farm': str(processed_dir / 'state_farm'),
-        'dmd': str(processed_dir / 'dmd'),
-        'nthuddd': str(processed_dir / 'nthuddd'),
-        'yawdd': str(processed_dir / 'yawdd'),
-        'uta_rldd': str(processed_dir / 'uta_rldd'),
-        'vicomtech_drowsy': str(processed_dir / 'vicomtech_drowsy')
+    # Print collection summary
+    print("\n📊 Collection Summary:")
+    total = 0
+    for class_name in ['ALERT', 'DROWSY', 'DISTRACTED']:
+        count = len(all_images[class_name])
+        total += count
+        print(f"  {class_name}: {count:,} images")
+    print(f"  TOTAL: {total:,} images")
+    
+    if total == 0:
+        print("\n❌ No images found! Check dataset paths.")
+        return
+    
+    # Step 2: Split each class into train/val/test
+    print("\n✂️  Step 2: Splitting into train/val/test (70/15/15)...")
+    splits = {
+        'train': defaultdict(list),
+        'val': defaultdict(list),
+        'test': defaultdict(list)
     }
     
-    # Check which datasets exist
-    existing_datasets = {}
-    for name, path in datasets_to_merge.items():
-        if Path(path).exists():
-            # Count files
-            file_count = len(list(Path(path).rglob("*.jpg"))) + \
-                        len(list(Path(path).rglob("*.png"))) + \
-                        len(list(Path(path).rglob("*.jpeg")))
-            
-            if file_count > 0:
-                existing_datasets[name] = path
-                print(f"✅ Found {name}: {file_count:,} images")
-            else:
-                print(f"⚠️  Skipping {name}: No images found")
-        else:
-            print(f"⚠️  Skipping {name}: Directory not found")
+    for class_name, images in all_images.items():
+        class_splits = split_data(images, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15)
+        
+        splits['train'][class_name] = class_splits['train']
+        splits['val'][class_name] = class_splits['val']
+        splits['test'][class_name] = class_splits['test']
+        
+        print(f"  {class_name}:")
+        print(f"    Train: {len(class_splits['train'])}, Val: {len(class_splits['val'])}, Test: {len(class_splits['test'])}")
     
-    print(f"\n📊 Total datasets to merge: {len(existing_datasets)}")
+    # Step 3: Copy images to final structure
+    print("\n📁 Step 3: Creating final directory structure...")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    if not existing_datasets:
-        print("\n❌ No datasets found to merge!")
-        print("Please process datasets first.")
-        return
+    stats = copy_images(splits, OUTPUT_DIR)
     
-    # Confirm
-    print("\n" + "="*70)
-    print("MERGE CONFIGURATION")
-    print("="*70)
-    print(f"Datasets: {', '.join(existing_datasets.keys())}")
-    print(f"Output: datasets/processed/merged/")
-    print(f"Splits: 70% train, 15% val, 15% test")
-    print(f"Balance classes: No (keep original distribution)")
-    print("\nThis will:")
-    print("  1. Copy all images to merged folder")
-    print("  2. Organize by class (ALERT/DROWSY/DISTRACTED)")
-    print("  3. Split into train/val/test folders")
-    print("  4. Create metadata.json with statistics")
-    print("="*70)
-    
-    response = input("\n➡️  Proceed with merge? (yes/no): ").strip().lower()
-    
-    if response not in ['yes', 'y']:
-        print("\n❌ Merge cancelled.")
-        return
-    
-    # Merge datasets
-    print("\n🚀 Starting merge process...\n")
-    
-    stats = merger.merge_datasets(
-        dataset_paths=existing_datasets,
-        output_name="merged_dataset",
-        create_splits=True,
-        balance=False  # Keep original distribution
-    )
-    
-    # Create comprehensive metadata for Abrar
-    print("\n📝 Creating metadata.json...")
-    
+    # Step 4: Create metadata
+    print("\n📝 Step 4: Creating metadata...")
     metadata = {
-        "dataset_name": "vigilant_driver_merged",
-        "version": "1.0",
-        "created_date": "2025-10-21",
-        "description": "Merged dataset from 6 public sources for driver state classification",
-        "total_samples": stats['total_images'],
-        "source_datasets": stats['datasets_merged'],
-        "dataset_contributions": stats['dataset_contributions'],
-        "class_mapping": {
-            "ALERT": 0,
-            "DISTRACTED": 1,
-            "DROWSY": 2
+        'dataset_name': 'Vigilant Driver - Merged Dataset',
+        'version': '1.0',
+        'created_date': '2025-10-21',
+        'total_samples': sum(stats['train'].values()) + sum(stats['val'].values()) + sum(stats['test'].values()),
+        'splits': {
+            'train': dict(stats['train']),
+            'val': dict(stats['val']),
+            'test': dict(stats['test'])
         },
-        "classes": ["ALERT", "DISTRACTED", "DROWSY"],
-        "image_format": ["jpg", "jpeg", "png"],
-        "splits": {
-            "train": {
-                "split_ratio": 0.70,
-                "total": stats['splits']['train']['total'],
-                "by_class": stats['splits']['train']['by_class']
-            },
-            "val": {
-                "split_ratio": 0.15,
-                "total": stats['splits']['val']['total'],
-                "by_class": stats['splits']['val']['by_class']
-            },
-            "test": {
-                "split_ratio": 0.15,
-                "total": stats['splits']['test']['total'],
-                "by_class": stats['splits']['test']['by_class']
-            }
+        'source_datasets': list(DATASETS.keys()),
+        'source_contributions': dict(stats['sources']),
+        'class_mapping': {
+            'ALERT': 0,
+            'DISTRACTED': 1,
+            'DROWSY': 2
         },
-        "class_distribution": stats['class_distribution'],
-        "notes": [
-            "This dataset is ready for training.",
-            "Images are in original resolution (will be resized during training).",
-            "Custom Pakistani dataset not included yet (will be added later).",
-            "Use PyTorch ImageFolder or TensorFlow ImageDataGenerator to load."
-        ],
-        "recommended_training": {
-            "input_size": [224, 224],
-            "batch_size": 32,
-            "epochs": 50,
-            "optimizer": "Adam",
-            "learning_rate": 0.001,
-            "augmentation": [
-                "RandomHorizontalFlip",
-                "RandomRotation(10)",
-                "ColorJitter",
-                "RandomResizedCrop"
-            ]
+        'image_format': 'jpg/png',
+        'split_ratio': {
+            'train': 0.7,
+            'val': 0.15,
+            'test': 0.15
         }
     }
     
     # Save metadata
-    metadata_path = Path("datasets/processed/merged/merged_dataset/metadata.json")
-    save_json(metadata, metadata_path)
+    with open(OUTPUT_DIR / 'metadata.json', 'w') as f:
+        json.dump(metadata, f, indent=2)
     
-    # Print summary
-    print("\n" + "="*70)
+    print("\n" + "="*60)
     print("✅ MERGE COMPLETE!")
-    print("="*70)
+    print("="*60)
+    print(f"\n📂 Output Location: {OUTPUT_DIR}")
+    print(f"\n📊 Final Dataset Statistics:")
+    print(f"  Total Images: {metadata['total_samples']:,}")
+    print(f"\n  Train Split ({sum(stats['train'].values()):,} images):")
+    for class_name, count in stats['train'].items():
+        print(f"    {class_name}: {count:,}")
+    print(f"\n  Validation Split ({sum(stats['val'].values()):,} images):")
+    for class_name, count in stats['val'].items():
+        print(f"    {class_name}: {count:,}")
+    print(f"\n  Test Split ({sum(stats['test'].values()):,} images):")
+    for class_name, count in stats['test'].items():
+        print(f"    {class_name}: {count:,}")
     
-    print(f"\n📊 SUMMARY:")
-    print(f"  Total images: {stats['total_images']:,}")
-    print(f"\n  Train: {stats['splits']['train']['total']:,} images")
-    for class_name, count in stats['splits']['train']['by_class'].items():
-        print(f"    - {class_name}: {count:,}")
+    print(f"\n📦 Source Dataset Contributions:")
+    for source, count in sorted(stats['sources'].items()):
+        print(f"    {source}: {count:,} images")
     
-    print(f"\n  Validation: {stats['splits']['val']['total']:,} images")
-    for class_name, count in stats['splits']['val']['by_class'].items():
-        print(f"    - {class_name}: {count:,}")
-    
-    print(f"\n  Test: {stats['splits']['test']['total']:,} images")
-    for class_name, count in stats['splits']['test']['by_class'].items():
-        print(f"    - {class_name}: {count:,}")
-    
-    print(f"\n📁 OUTPUT LOCATION:")
-    print(f"  datasets/processed/merged/merged_dataset/")
-    print(f"    ├── train/")
-    print(f"    │   ├── ALERT/")
-    print(f"    │   ├── DISTRACTED/")
-    print(f"    │   └── DROWSY/")
-    print(f"    ├── val/")
-    print(f"    │   ├── ALERT/")
-    print(f"    │   ├── DISTRACTED/")
-    print(f"    │   └── DROWSY/")
-    print(f"    ├── test/")
-    print(f"    │   ├── ALERT/")
-    print(f"    │   ├── DISTRACTED/")
-    print(f"    │   └── DROWSY/")
-    print(f"    └── metadata.json")
-    
-    print(f"\n📦 DATASET CONTRIBUTIONS:")
-    for dataset, count in stats['dataset_contributions'].items():
-        percentage = (count / stats['total_images']) * 100
-        print(f"  {dataset}: {count:,} images ({percentage:.1f}%)")
-    
-    print(f"\n🎯 CLASS DISTRIBUTION:")
-    for class_name, count in stats['class_distribution'].items():
-        percentage = (count / stats['total_images']) * 100
-        print(f"  {class_name}: {count:,} images ({percentage:.1f}%)")
-    
-    print(f"\n📝 METADATA:")
-    print(f"  metadata.json created with full dataset information")
-    
-    print(f"\n✅ This dataset is now ready for Abrar!")
-    print(f"   Transfer the 'merged_dataset' folder to him.")
-    
-    print("\n" + "="*70)
+    print("\n✨ Ready to transfer to Abrar!")
+    print(f"   Give him the folder: {OUTPUT_DIR}")
 
 if __name__ == "__main__":
     main()
