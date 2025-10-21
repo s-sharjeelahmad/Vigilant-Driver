@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+
+# Datasets - TOO LARGE FOR GITHUB
+datasets/raw/
+datasets/processed/
+datasets/verified_images/
+
+# Models
+models/*.h5
+models/*.pb
+models/*.pth
+models/*.onnx
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Keep directory structure but ignore contents
+!datasets/.gitkeep
+!models/.gitkeep
+!logs/.gitkeep
