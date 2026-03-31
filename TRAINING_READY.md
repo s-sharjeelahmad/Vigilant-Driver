@@ -5,6 +5,7 @@
 ## 📦 What's Been Added
 
 ### 1. **Complete Training Script** (`ai_components/model_training/train_classifier.py`)
+
 - ✅ **650+ lines** of production-ready PyTorch code
 - ✅ Supports **ResNet18, ResNet50, MobileNetV3**
 - ✅ **Mixed precision training** (2x faster)
@@ -15,6 +16,7 @@
 - ✅ **Comprehensive evaluation** (confusion matrix, classification report)
 
 ### 2. **Training Guide** (`ai_components/model_training/README.md`)
+
 - ✅ Quick start commands
 - ✅ All CLI arguments explained
 - ✅ Hyperparameter tuning guide
@@ -22,6 +24,7 @@
 - ✅ Expected results table
 
 ### 3. **Kaggle Guide** (`ai_components/model_training/KAGGLE_GUIDE.md`)
+
 - ✅ Complete Kaggle notebook template
 - ✅ Dataset upload instructions
 - ✅ GPU setup verification
@@ -29,6 +32,7 @@
 - ✅ Download trained models
 
 ### 4. **Setup Verification** (`ai_components/model_training/verify_setup.py`)
+
 - ✅ Check Python version
 - ✅ Check PyTorch & CUDA
 - ✅ Check dataset structure
@@ -36,6 +40,7 @@
 - ✅ Verify all dependencies
 
 ### 5. **Updated Requirements** (`requirements.txt`)
+
 - ✅ PyTorch & torchvision
 - ✅ TensorBoard
 - ✅ All necessary packages
@@ -128,6 +133,7 @@ models/resnet18_baseline/
 ```
 
 **Example Test Report:**
+
 ```
               precision    recall  f1-score   support
 
@@ -145,6 +151,7 @@ weighted avg     0.8751    0.8756    0.8752     12924
 ## 🎯 Training Strategy
 
 ### **Phase 1: Quick Test (30 minutes)**
+
 ```powershell
 python ai_components/model_training/train_classifier.py `
     --data-dir datasets/processed/merged_final `
@@ -154,9 +161,11 @@ python ai_components/model_training/train_classifier.py `
     --save-dir models/quick_test `
     --use-amp
 ```
+
 **Goal:** Verify everything works
 
 ### **Phase 2: Baseline Training (6-8 hours)**
+
 ```powershell
 python ai_components/model_training/train_classifier.py `
     --data-dir datasets/processed/merged_final `
@@ -167,9 +176,11 @@ python ai_components/model_training/train_classifier.py `
     --use-amp `
     --early-stopping
 ```
+
 **Target:** 86-89% accuracy
 
 ### **Phase 3: Mobile Model (4-6 hours)**
+
 ```powershell
 python ai_components/model_training/train_classifier.py `
     --data-dir datasets/processed/merged_final `
@@ -180,9 +191,11 @@ python ai_components/model_training/train_classifier.py `
     --use-amp `
     --early-stopping
 ```
+
 **Target:** 83-86% accuracy, fast inference
 
 ### **Phase 4: Compare & Report**
+
 - Analyze results from both models
 - Generate comparison table
 - Choose best for deployment
@@ -192,6 +205,7 @@ python ai_components/model_training/train_classifier.py `
 ## 📈 Monitor Training
 
 ### **TensorBoard (Real-time)**
+
 ```powershell
 # In separate terminal
 tensorboard --logdir runs
@@ -200,6 +214,7 @@ tensorboard --logdir runs
 ```
 
 ### **GPU Monitoring**
+
 ```powershell
 # Check GPU usage
 nvidia-smi
@@ -213,12 +228,14 @@ watch -n 1 nvidia-smi  # Linux/WSL
 ## 🔧 Troubleshooting
 
 ### **Out of Memory**
+
 ```powershell
 --batch-size 16  # or 8
 --model mobilenet_v3_small
 ```
 
 ### **CUDA Not Available**
+
 ```powershell
 # Check CUDA
 nvidia-smi
@@ -228,6 +245,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 ```
 
 ### **Slow Training**
+
 ```powershell
 --use-amp  # 2x faster
 --num-workers 8  # More data loaders
@@ -237,14 +255,14 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 ## 🎓 Expected Timeline
 
-| Task | Duration | When |
-|------|----------|------|
-| Setup & verification | 30 min | Now |
-| Quick test (5 epochs) | 30 min | Today |
-| ResNet18 baseline | 6-8 hours | Overnight |
-| MobileNetV3 | 4-6 hours | Next day |
-| Analysis & reporting | 2 hours | After training |
-| **Total** | **~15 hours** | **2 days** |
+| Task                  | Duration      | When           |
+| --------------------- | ------------- | -------------- |
+| Setup & verification  | 30 min        | Now            |
+| Quick test (5 epochs) | 30 min        | Today          |
+| ResNet18 baseline     | 6-8 hours     | Overnight      |
+| MobileNetV3           | 4-6 hours     | Next day       |
+| Analysis & reporting  | 2 hours       | After training |
+| **Total**             | **~15 hours** | **2 days**     |
 
 ---
 
@@ -287,6 +305,7 @@ Everything is **ready to clone and train**. You can:
 ---
 
 **Questions?**
+
 - Check `README.md` for detailed guide
 - Check `KAGGLE_GUIDE.md` for Kaggle-specific help
 - Run `verify_setup.py` to diagnose issues

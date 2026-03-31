@@ -1,12 +1,15 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
 *$py.class
 *.so
 .Python
 venv/
 ENV/
 env/
+.env
 
 # Datasets - TOO LARGE FOR GITHUB
 datasets/raw/
@@ -18,6 +21,13 @@ models/*.h5
 models/*.pb
 models/*.pth
 models/*.onnx
+*.pth
+best_mobilenetv3.pth
+
+# Node / Expo
+node_modules/
+mobile-app/.expo/
+mobile-app/node_modules/
 
 # Logs
 logs/
