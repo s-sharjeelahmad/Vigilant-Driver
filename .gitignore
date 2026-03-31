@@ -10,6 +10,9 @@ venv/
 ENV/
 env/
 .env
+*.pyd
+.env.*
+!.env.example
 
 # Datasets - TOO LARGE FOR GITHUB
 datasets/raw/
@@ -22,12 +25,19 @@ models/*.pb
 models/*.pth
 models/*.onnx
 *.pth
+*.h5
+*.pb
+*.tflite
+*.onnx
+saved_model/
 best_mobilenetv3.pth
 
 # Node / Expo
 node_modules/
 mobile-app/.expo/
 mobile-app/node_modules/
+mobile-app/dist/
+mobile-app/.env.local
 
 # Logs
 logs/
@@ -39,10 +49,12 @@ logs/
 *.swp
 *.swo
 *~
+.vscode/settings.json
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Temporary files
 *.tmp
