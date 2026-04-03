@@ -3,7 +3,7 @@
  */
 
 export interface Driver {
-  id: number;
+  id: string;
   name: string;
   cnic: string;
   phone?: string;
@@ -25,7 +25,7 @@ export interface StateBreakdown {
 
 export interface Session {
   id: string;
-  driverId: number;
+  driverId: string;
   startTime: string; // ISO string
   endTime: string; // ISO string
   duration: number; // seconds
@@ -43,7 +43,7 @@ export interface Prediction {
 
 export interface ActiveSession {
   id: string;
-  driverId: number;
+  driverId: string;
   startTime: string;
   events: SessionEvent[];
 }

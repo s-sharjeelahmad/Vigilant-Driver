@@ -119,4 +119,4 @@ export const STORAGE_KEYS = {
 // Change this to your backend URL
 // For local testing: use your computer's IP address (not localhost)
 // Find IP with: ipconfig (Windows) or ifconfig (Mac/Linux)
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.16.85.244:8000';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.50.15:8000';

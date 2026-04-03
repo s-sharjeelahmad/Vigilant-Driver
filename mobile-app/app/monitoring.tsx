@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -8,13 +9,33 @@ import {
   View,
 } from "react-native";
 import { Camera, CameraView, useCameraPermissions } from "expo-camera";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import * as tf from "@tensorflow/tfjs";
+import { decodeJpeg } from "@tensorflow/tfjs-react-native";
 import { Asset } from "expo-asset";
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useSession } from "@/src/context/SessionContext";
+import { sendDriverEvent } from "@/src/services/apiClient";
+import type { DriverState } from "@/src/services/apiClient";
 
 type PermissionState = "undetermined" | "granted" | "denied";
 type ModelStatus = "Loading..." | "Ready" | "Failed" | "Dev Build Required";
+
+type OrtModule = typeof import("onnxruntime-react-native");
+type OrtSession = import("onnxruntime-react-native").InferenceSession;
+type OrtTensor = import("onnxruntime-react-native").Tensor;
+
+interface PredictionResult {
+  state: DriverState;
+  confidence: number;
+}
+
+const PROCESS_INTERVAL_MS = 2000;
+const INPUT_IMAGE_SIZE = 224;
+const CHANNEL_MEAN = [0.485, 0.456, 0.406] as const;
+const CHANNEL_STD = [0.229, 0.224, 0.225] as const;
 
 export default function MonitoringScreen() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -22,7 +43,173 @@ export default function MonitoringScreen() {
     useState<PermissionState>("undetermined");
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(true);
   const [modelStatus, setModelStatus] = useState<ModelStatus>("Loading...");
-  const modelSessionRef = useRef<unknown | null>(null);
+  const [lastPrediction, setLastPrediction] = useState<PredictionResult | null>(
+    null,
+  );
+
+  const cameraRef = useRef<any>(null);
+  const modelSessionRef = useRef<OrtSession | null>(null);
+  const ortModuleRef = useRef<OrtModule | null>(null);
+  const isProcessingRef = useRef(false);
+  const sessionInitRef = useRef(false);
+
+  const { activeSession, startSession, endSession, addSessionEvent } =
+    useSession();
+
+  const preprocessFrameForMobileNetV3 = useCallback(
+    async (imageUri: string, ort: OrtModule): Promise<OrtTensor> => {
+      const resized = await manipulateAsync(
+        imageUri,
+        [{ resize: { width: INPUT_IMAGE_SIZE, height: INPUT_IMAGE_SIZE } }],
+        {
+          compress: 1,
+          format: SaveFormat.JPEG,
+          base64: true,
+        },
+      );
+
+      if (!resized.base64) {
+        throw new Error("Failed to read resized image as base64.");
+      }
+
+      const jpegBytes = tf.util.encodeString(resized.base64, "base64");
+      const decodedTensor = decodeJpeg(jpegBytes, 3);
+
+      const pixelData = decodedTensor.dataSync();
+      const planeSize = INPUT_IMAGE_SIZE * INPUT_IMAGE_SIZE;
+      const inputData = new Float32Array(1 * 3 * planeSize);
+      const inv255 = 1 / 255;
+
+      for (let i = 0; i < planeSize; i += 1) {
+        const rgbOffset = i * 3;
+        const r = pixelData[rgbOffset] * inv255;
+        const g = pixelData[rgbOffset + 1] * inv255;
+        const b = pixelData[rgbOffset + 2] * inv255;
+
+        inputData[i] = (r - CHANNEL_MEAN[0]) / CHANNEL_STD[0];
+        inputData[planeSize + i] = (g - CHANNEL_MEAN[1]) / CHANNEL_STD[1];
+        inputData[planeSize * 2 + i] = (b - CHANNEL_MEAN[2]) / CHANNEL_STD[2];
+      }
+
+      decodedTensor.dispose();
+
+      return new ort.Tensor("float32", inputData, [1, 3, 224, 224]);
+    },
+    [],
+  );
+
+  const mapModelOutputToState = useCallback(
+    (outputData: ArrayLike<number>): PredictionResult => {
+      if (!outputData || outputData.length === 0) {
+        return { state: "ALERT", confidence: 0.5 };
+      }
+
+      const logits = Array.from(outputData, (value) => Number(value));
+      const maxLogit = Math.max(...logits);
+      const expValues = logits.map((logit) => Math.exp(logit - maxLogit));
+      const expSum = expValues.reduce((sum, value) => sum + value, 0);
+      const probabilities = expValues.map((value) => value / expSum);
+
+      let maxIndex = 0;
+      let maxValue = probabilities[0] ?? 0;
+
+      for (let i = 1; i < probabilities.length; i += 1) {
+        const value = probabilities[i] ?? 0;
+        if (value > maxValue) {
+          maxValue = value;
+          maxIndex = i;
+        }
+      }
+
+      const stateByIndex: Record<number, DriverState> = {
+        0: "ALERT",
+        1: "DROWSY",
+        2: "DISTRACTED",
+      };
+      const state: DriverState = stateByIndex[maxIndex] ?? "ALERT";
+
+      return {
+        state,
+        confidence: Math.max(0, Math.min(1, maxValue)),
+      };
+    },
+    [],
+  );
+
+  const runInferenceCycle = useCallback(async () => {
+    if (isProcessingRef.current) {
+      return;
+    }
+
+    if (
+      !modelSessionRef.current ||
+      !ortModuleRef.current ||
+      !activeSession?.id
+    ) {
+      return;
+    }
+
+    if (!cameraRef.current) {
+      return;
+    }
+
+    isProcessingRef.current = true;
+
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.35,
+        skipProcessing: true,
+      });
+
+      if (!photo?.uri) {
+        return;
+      }
+
+      const tensor = await preprocessFrameForMobileNetV3(
+        photo.uri,
+        ortModuleRef.current,
+      );
+
+      const session = modelSessionRef.current;
+      const inputName = session.inputNames[0];
+      const outputName = session.outputNames[0];
+
+      const feeds: Record<string, OrtTensor> = {
+        [inputName]: tensor,
+      };
+
+      const outputs = await session.run(feeds);
+      const outputTensor = outputs[outputName] as { data: ArrayLike<number> };
+      const prediction = mapModelOutputToState(outputTensor?.data || []);
+
+      setLastPrediction(prediction);
+      addSessionEvent(prediction.state, prediction.confidence);
+
+      // TODO (Abrar): When the LSTM model is ready, replace this mock EAR/MAR/Headpose data with actual extracted features.
+      void sendDriverEvent({
+        session_id: activeSession.id,
+        state: prediction.state,
+        confidence: prediction.confidence,
+        features: {
+          ear: 0.3,
+          mar: 0.1,
+          headpose: { pitch: 0, yaw: 0, roll: 0 },
+          model_version: "v1_mobilenet",
+        },
+      }).catch((error) => {
+        console.error("[Monitoring] Failed to upload driver event:", error);
+      });
+    } catch (error) {
+      console.error("[Monitoring] Inference cycle failed:", error);
+    } finally {
+      isProcessingRef.current = false;
+    }
+  }, [
+    activeSession?.id,
+    addSessionEvent,
+    mapModelOutputToState,
+    preprocessFrameForMobileNetV3,
+  ]);
 
   const loadModel = useCallback(async () => {
     try {
@@ -34,6 +221,8 @@ export default function MonitoringScreen() {
         );
         return;
       }
+
+      await tf.ready();
 
       setModelStatus("Loading...");
 
@@ -49,6 +238,8 @@ export default function MonitoringScreen() {
       }
 
       const ort = await import("onnxruntime-react-native");
+      ortModuleRef.current = ort;
+
       const session = await ort.InferenceSession.create(asset.localUri);
       modelSessionRef.current = session;
       setModelStatus("Ready");
@@ -73,7 +264,6 @@ export default function MonitoringScreen() {
       const micResult = await Camera.requestMicrophonePermissionsAsync();
       setMicrophonePermission(micResult.granted ? "granted" : "denied");
 
-      // Keep camera state local so the denied view can render instantly.
       if (!cameraGranted && cameraPermission?.granted) {
         cameraGranted = false;
       }
@@ -85,6 +275,24 @@ export default function MonitoringScreen() {
     }
   }, [cameraPermission?.granted, requestCameraPermission]);
 
+  const initBackendSession = useCallback(async () => {
+    if (sessionInitRef.current || activeSession?.id) {
+      return;
+    }
+
+    sessionInitRef.current = true;
+
+    try {
+      await startSession();
+    } catch (error: any) {
+      sessionInitRef.current = false;
+      Alert.alert(
+        "Session Error",
+        error?.message || "Failed to start backend monitoring session.",
+      );
+    }
+  }, [activeSession?.id, startSession]);
+
   useEffect(() => {
     void requestAllPermissions();
   }, [requestAllPermissions]);
@@ -93,7 +301,45 @@ export default function MonitoringScreen() {
     void loadModel();
   }, [loadModel]);
 
-  const handleStopMonitoring = () => {
+  useEffect(() => {
+    if (!!cameraPermission?.granted && microphonePermission === "granted") {
+      void initBackendSession();
+    }
+  }, [cameraPermission?.granted, microphonePermission, initBackendSession]);
+
+  useEffect(() => {
+    const canProcess =
+      modelStatus === "Ready" &&
+      !!cameraPermission?.granted &&
+      microphonePermission === "granted" &&
+      !!activeSession?.id;
+
+    if (!canProcess) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void runInferenceCycle();
+    }, PROCESS_INTERVAL_MS);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [
+    activeSession?.id,
+    cameraPermission?.granted,
+    microphonePermission,
+    modelStatus,
+    runInferenceCycle,
+  ]);
+
+  const handleStopMonitoring = async () => {
+    try {
+      await endSession();
+    } catch (error) {
+      console.error("[Monitoring] Failed to end session cleanly:", error);
+    }
+
     if (router.canGoBack()) {
       router.back();
       return;
@@ -139,7 +385,9 @@ export default function MonitoringScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={handleStopMonitoring}
+            onPress={() => {
+              void handleStopMonitoring();
+            }}
             activeOpacity={0.8}
           >
             <Text style={styles.secondaryButtonText}>Go Back</Text>
@@ -151,17 +399,27 @@ export default function MonitoringScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} facing="front" />
+      <CameraView ref={cameraRef} style={styles.camera} facing="front" />
 
       <SafeAreaView style={styles.overlayContainer} pointerEvents="box-none">
         <View style={styles.topOverlay}>
           <Text style={styles.modelStatusText}>AI Model: {modelStatus}</Text>
+          <Text style={styles.predictionText}>
+            {lastPrediction
+              ? `Prediction: ${lastPrediction.state} (${Math.round(lastPrediction.confidence * 100)}%)`
+              : "Prediction: waiting..."}
+          </Text>
+          <Text style={styles.sessionText}>
+            Session: {activeSession?.id ? "Connected" : "Connecting..."}
+          </Text>
         </View>
 
         <View style={styles.bottomOverlay}>
           <TouchableOpacity
             style={styles.stopButton}
-            onPress={handleStopMonitoring}
+            onPress={() => {
+              void handleStopMonitoring();
+            }}
             activeOpacity={0.85}
           >
             <Ionicons name="stop-circle" size={26} color="#FFFFFF" />
@@ -188,6 +446,7 @@ const styles = StyleSheet.create({
   topOverlay: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    gap: 8,
   },
   modelStatusText: {
     alignSelf: "flex-start",
@@ -198,6 +457,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     fontSize: 14,
     fontWeight: "700",
+  },
+  predictionText: {
+    alignSelf: "flex-start",
+    color: "#FFFFFF",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  sessionText: {
+    alignSelf: "flex-start",
+    color: "#E0E0E0",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: "600",
   },
   bottomOverlay: {
     paddingHorizontal: 20,

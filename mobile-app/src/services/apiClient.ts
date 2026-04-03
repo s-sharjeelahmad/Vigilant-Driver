@@ -82,4 +82,33 @@ export const tokenManager = {
   },
 };
 
+export type DriverState = 'ALERT' | 'DROWSY' | 'DISTRACTED';
+
+export interface DriverEventPayload {
+  session_id: string;
+  state: DriverState;
+  confidence: number;
+  features: Record<string, unknown>;
+}
+
+export interface SessionMetricsPayload {
+  session_id: string;
+  total_frames_processed_increment?: number;
+  alert_frames_increment?: number;
+  drowsy_frames_increment?: number;
+  distracted_frames_increment?: number;
+  average_confidence?: number;
+  attention_score?: number;
+}
+
+export const sendDriverEvent = async (payload: DriverEventPayload) => {
+  const response = await apiClient.post('/driver/events', payload);
+  return response.data;
+};
+
+export const updateSessionMetrics = async (payload: SessionMetricsPayload) => {
+  const response = await apiClient.patch('/driver/sessions/metrics', payload);
+  return response.data;
+};
+
 export default apiClient;

@@ -64,7 +64,7 @@ export default function LoginScreen() {
 
       // Persisted by SessionContext storage service so login survives app restarts.
       await setCurrentDriver({
-        id: driverProfile.driver_id as any,
+        id: driverProfile.driver_id,
         name: driverProfile.full_name,
         cnic: driverProfile.cnic,
         phone: driverProfile.phone_number || undefined,
