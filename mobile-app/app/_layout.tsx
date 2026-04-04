@@ -10,6 +10,7 @@ import "react-native-reanimated";
 import { SessionProvider } from "@/src/context/SessionContext";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import AnimatedSplash from "@/src/components/AnimatedSplash";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -45,32 +46,37 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <SessionProvider>
-        <NavigationThemeProvider value={DefaultTheme}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-            initialRouteName="(auth)/login"
-          >
-            <Stack.Screen
-              name="(auth)/login"
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="profile" options={{ headerShown: false }} />
-            <Stack.Screen name="monitoring" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="edit-profile"
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="settings" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-        </NavigationThemeProvider>
-      </SessionProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <SessionProvider>
+          <NavigationThemeProvider value={DefaultTheme}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+              }}
+              initialRouteName="(auth)/login"
+            >
+              <Stack.Screen
+                name="(auth)/login"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="profile" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="monitoring"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="edit-profile"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen name="settings" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </NavigationThemeProvider>
+        </SessionProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

@@ -2,22 +2,22 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Camera, CameraView, useCameraPermissions } from "expo-camera";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as tf from "@tensorflow/tfjs";
 import { decodeJpeg } from "@tensorflow/tfjs-react-native";
-import { Asset } from "expo-asset";
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSession } from "@/src/context/SessionContext";
 import { sendDriverEvent } from "@/src/services/apiClient";
+import { ensureModelExists } from "../src/services/modelFileService";
 import type { DriverState } from "@/src/services/apiClient";
 
 type PermissionState = "undetermined" | "granted" | "denied";
@@ -225,25 +225,15 @@ export default function MonitoringScreen() {
       await tf.ready();
 
       setModelStatus("Loading...");
-
-      // Path is relative to app/monitoring.tsx.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const modelAssetModule = require("../assets/models/vigilant_driver_model.onnx");
-      const asset = Asset.fromModule(modelAssetModule);
-
-      await asset.downloadAsync();
-
-      if (!asset.localUri) {
-        throw new Error("Model asset local URI is unavailable.");
-      }
+      const modelPath = await ensureModelExists();
 
       const ort = await import("onnxruntime-react-native");
       ortModuleRef.current = ort;
 
-      const session = await ort.InferenceSession.create(asset.localUri);
+      const session = await ort.InferenceSession.create(modelPath);
       modelSessionRef.current = session;
       setModelStatus("Ready");
-      console.log("[ONNX] Model loaded successfully:", asset.localUri);
+      console.log("[ONNX] Model loaded successfully:", modelPath);
     } catch (error) {
       console.error("[ONNX] Model load failed:", error);
       setModelStatus("Failed");

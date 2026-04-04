@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import { Driver, Session, ActiveSession, DriverState } from "../types";
 import {
   saveDriver,
@@ -46,6 +52,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const isEndingSessionRef = useRef(false);
 
   // Load saved data on mount
   useEffect(() => {
@@ -172,6 +179,20 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
       return null;
     }
 
+    if (!activeSession.id) {
+      console.warn("⚠️ Cannot end session: session_id is null or undefined");
+      return null;
+    }
+
+    if (isEndingSessionRef.current) {
+      console.warn(
+        "⚠️ endSession already in progress, skipping duplicate call",
+      );
+      return null;
+    }
+
+    isEndingSessionRef.current = true;
+
     try {
       const endTime = new Date().toISOString();
       const startTime = new Date(activeSession.startTime);
@@ -248,15 +269,14 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Failed to save session:", err);
       });
 
-      // Clear active session
-      setActiveSession(null);
-
       return completedSession;
     } catch (error) {
       console.error("Error ending session:", error);
-      // Clear active session even if there's an error
-      setActiveSession(null);
       return null;
+    } finally {
+      // Always clear session state to avoid stale or duplicate end calls.
+      setActiveSession(null);
+      isEndingSessionRef.current = false;
     }
   };
 

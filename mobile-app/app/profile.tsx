@@ -5,9 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -36,13 +36,13 @@ export default function ProfileScreen() {
   const totalSessions = sessionHistory.length;
   const totalDuration = sessionHistory.reduce(
     (sum, s) => sum + (s?.duration || 0),
-    0
+    0,
   );
   const avgScore =
     totalSessions > 0
       ? Math.round(
           sessionHistory.reduce((sum, s) => sum + (s?.attentionScore || 0), 0) /
-            totalSessions
+            totalSessions,
         )
       : 0;
 
@@ -75,7 +75,7 @@ export default function ProfileScreen() {
             router.replace("/(auth)/login");
           },
         },
-      ]
+      ],
     );
   };
 
@@ -93,7 +93,7 @@ export default function ProfileScreen() {
             Alert.alert("Success", "Session history cleared!");
           },
         },
-      ]
+      ],
     );
   };
 

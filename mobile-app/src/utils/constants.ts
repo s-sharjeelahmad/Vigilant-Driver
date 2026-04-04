@@ -119,4 +119,10 @@ export const STORAGE_KEYS = {
 // Change this to your backend URL
 // For local testing: use your computer's IP address (not localhost)
 // Find IP with: ipconfig (Windows) or ifconfig (Mac/Linux)
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.50.15:8000';
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL;
+
+if (!apiBaseUrl) {
+  throw new Error('Missing EXPO_PUBLIC_API_URL. Set it in mobile-app/.env before starting the app.');
+}
+
+export const API_BASE_URL = apiBaseUrl;

@@ -6,11 +6,11 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -92,7 +92,7 @@ export default function EditProfileScreen() {
 
     try {
       const updatedDriver = {
-        id: currentDriver?.id || Date.now(),
+        id: currentDriver?.id || "",
         name: name.trim(),
         cnic: cnic,
         phone: phone || undefined,

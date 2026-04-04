@@ -5,9 +5,9 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -28,7 +28,7 @@ export default function HistoryScreen() {
   const { colors, fontSize } = useTheme();
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   const getFontSize = (base: number) => {
@@ -82,11 +82,11 @@ export default function HistoryScreen() {
             setSelectedSessions(new Set());
             Alert.alert(
               "Success",
-              `${count} session${count > 1 ? "s" : ""} deleted successfully!`
+              `${count} session${count > 1 ? "s" : ""} deleted successfully!`,
             );
           },
         },
-      ]
+      ],
     );
   };
 
@@ -103,7 +103,7 @@ export default function HistoryScreen() {
         // TODO: Create session-summary screen
         Alert.alert(
           "Session Details",
-          `Date: ${date}\nDuration: ${duration}\nScore: ${item.attentionScore}%\n\nAlert: ${item.stateBreakdown.ALERT}\nDrowsy: ${item.stateBreakdown.DROWSY}\nDistracted: ${item.stateBreakdown.DISTRACTED}`
+          `Date: ${date}\nDuration: ${duration}\nScore: ${item.attentionScore}%\n\nAlert: ${item.stateBreakdown.ALERT}\nDrowsy: ${item.stateBreakdown.DROWSY}\nDistracted: ${item.stateBreakdown.DISTRACTED}`,
         );
       }
     };

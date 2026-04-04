@@ -31,6 +31,11 @@ export interface SessionEndRequest {
   termination_reason?: string;
 }
 
+export interface SessionEndResponse {
+  detail: string;
+  session?: SessionCreateResponse;
+}
+
 class SessionService {
   /**
    * Start a new monitoring session
@@ -47,9 +52,48 @@ class SessionService {
       if (error.response?.status === 401) {
         throw new AuthError('Session expired. Please log in again.');
       }
+
       if (error.response?.status === 400) {
-        throw new Error(error.response.data?.detail || 'You already have an active session');
+        const detail: string = error.response.data?.detail || '';
+
+        // Recover from a previously stuck active session and continue monitoring.
+        const match = detail.match(/already has an active session \(session_id: ([a-f0-9-]+)\)/i);
+        if (match?.[1]) {
+          console.warn('[Session] Recovering stuck active session:', match[1]);
+
+          try {
+            const sessionsResponse = await apiClient.get<SessionCreateResponse[]>('/driver/sessions');
+            const activeSession = sessionsResponse.data.find(
+              (session) => session.session_status === 'active',
+            );
+
+            if (activeSession) {
+              return activeSession;
+            }
+          } catch (sessionsError) {
+            console.warn('[Session] Failed to fetch active sessions, using fallback payload.', sessionsError);
+          }
+
+          return {
+            session_id: match[1],
+            driver_id: '',
+            cnic: '',
+            session_status: 'active',
+            start_time: new Date().toISOString(),
+            total_frames_processed: 0,
+            alert_frames: 0,
+            drowsy_frames: 0,
+            distracted_frames: 0,
+            average_confidence: 0,
+            attention_score: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+        }
+
+        throw new Error(detail || 'You already have an active session.');
       }
+
       throw new Error('Failed to start session. Check your connection.');
     }
   }
@@ -60,14 +104,25 @@ class SessionService {
   async endSession(
     sessionStatus: 'completed' | 'interrupted' | 'error' = 'completed',
     terminationReason?: string
-  ): Promise<SessionCreateResponse> {
+  ): Promise<SessionCreateResponse | null> {
     try {
       const payload: SessionEndRequest = {
         session_status: sessionStatus,
         termination_reason: terminationReason,
       };
-      const response = await apiClient.put<SessionCreateResponse>('/driver/endsession', payload);
-      return response.data;
+      const response = await apiClient.put<SessionEndResponse | SessionCreateResponse>('/driver/endsession', payload);
+      const responseData: any = response.data;
+
+      if (responseData?.session) {
+        return responseData.session as SessionCreateResponse;
+      }
+
+      if (responseData?.detail) {
+        console.warn('[Session] endSession response:', responseData.detail);
+        return null;
+      }
+
+      return responseData as SessionCreateResponse;
     } catch (error: any) {
       if (error.response?.status === 401) {
         throw new AuthError('Session expired. Please log in again.');
