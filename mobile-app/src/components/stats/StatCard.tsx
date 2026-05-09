@@ -34,8 +34,10 @@ export default function StatCard({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card }, style]}>
-      <Ionicons name={icon} size={32} color={iconColor || colors.primary} />
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }, style]}>
+      <View style={[styles.iconWrapper, { backgroundColor: `${iconColor || colors.primary}15` }]}>
+        <Ionicons name={icon} size={24} color={iconColor || colors.primary} />
+      </View>
       <Text
         style={[
           styles.value,
@@ -47,7 +49,7 @@ export default function StatCard({
       <Text
         style={[
           styles.label,
-          { color: colors.textSecondary, fontSize: getFontSize(FontSizes.xs) },
+          { color: colors.textSecondary, fontSize: getFontSize(FontSizes.sm) },
         ]}
       >
         {label}
@@ -60,17 +62,22 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     minWidth: "47%",
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    alignItems: "center",
+    alignItems: "flex-start",
+    borderWidth: 1,
     ...Shadow.small,
+  },
+  iconWrapper: {
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
   },
   value: {
     fontWeight: FontWeights.bold,
-    marginTop: Spacing.sm,
   },
   label: {
     marginTop: Spacing.xs,
-    textAlign: "center",
+    fontWeight: FontWeights.medium,
   },
 });

@@ -10,14 +10,13 @@ venv/
 ENV/
 env/
 .env
+local.db
 *.pyd
 .env.*
 !.env.example
 
 # Datasets - TOO LARGE FOR GITHUB
-datasets/raw/
-datasets/processed/
-datasets/verified_images/
+datasets/
 
 # Models
 models/*.h5
@@ -29,8 +28,16 @@ models/*.onnx
 *.pb
 *.tflite
 *.onnx
+
+# Allow ONNX in mobile app assets
+!mobile-app/assets/models/*.onnx
+!mobile-app/assets/models/*.onnx.data
+
 saved_model/
 best_mobilenetv3.pth
+mobilenetv3.zip
+mobile-app.zip
+*.zip
 
 # Node / Expo
 node_modules/
@@ -38,6 +45,7 @@ mobile-app/.expo/
 mobile-app/node_modules/
 mobile-app/dist/
 mobile-app/.env.local
+android/app/build/
 
 # Logs
 logs/

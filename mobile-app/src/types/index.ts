@@ -7,6 +7,7 @@ export interface Driver {
   name: string;
   cnic: string;
   phone?: string;
+  risk_score?: number;
 }
 
 export type DriverState = 'ALERT' | 'DROWSY' | 'DISTRACTED';
@@ -41,9 +42,20 @@ export interface Prediction {
   timestamp: string;
 }
 
+export interface StateCounts {
+  ALERT: number;
+  DROWSY: number;
+  DISTRACTED: number;
+}
+
 export interface ActiveSession {
   id: string;
   driverId: string;
   startTime: string;
-  events: SessionEvent[];
+  /** Aggregate frame counts — O(1) increment, no array spread */
+  counts: StateCounts;
+  /** Sum of all confidence scores to calculate true average on endSession */
+  confidenceSum: number;
+  /** Last 20 events kept for real-time display only */
+  recentEvents: SessionEvent[];
 }

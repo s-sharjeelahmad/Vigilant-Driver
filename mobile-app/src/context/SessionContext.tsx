@@ -1,11 +1,13 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useState,
   useEffect,
   useRef,
 } from "react";
-import { Driver, Session, ActiveSession, DriverState } from "../types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Driver, Session, ActiveSession, DriverState, StateCounts } from "../types";
 import {
   saveDriver,
   loadDriver,
@@ -14,8 +16,13 @@ import {
   loadSessions,
 } from "@/src/services/storage";
 import { sessionService, AuthError } from "@/src/services/sessionService";
-import { tokenManager } from "@/src/services/apiClient";
+import { SessionMetricsPayload, tokenManager, sendDriverEvent, updateSessionMetrics } from "@/src/services/apiClient";
 import { router } from "expo-router";
+
+const ACTIVE_SESSION_STORAGE_KEY = "active_session_id";
+
+const RECENT_EVENTS_LIMIT = 20;
+
 interface SessionContextType {
   // Driver State
   currentDriver: Driver | null;
@@ -25,7 +32,7 @@ interface SessionContextType {
   activeSession: ActiveSession | null;
   startSession: () => Promise<void>;
   endSession: () => Promise<Session | null>;
-  addSessionEvent: (state: DriverState, confidence: number) => void;
+  addSessionEvent: (state: DriverState, confidence: number, features?: Record<string, unknown>) => void;
 
   // Session History
   sessionHistory: Session[];
@@ -39,155 +46,176 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-// Memory management constants
-const EVENT_PRUNE_THRESHOLD = 600; // Start pruning at this count
-const EVENT_PRUNE_BATCH = 100; // Remove this many oldest events when pruning
-
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [currentDriver, setCurrentDriverState] = useState<Driver | null>(null);
-  const [activeSession, setActiveSession] = useState<ActiveSession | null>(
-    null,
-  );
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isEndingSessionRef = useRef(false);
+  const failedEventsQueueRef = useRef<any[]>([]);
 
-  // Load saved data on mount
+  // Load saved data on mount; clean up any stale session from a previous crash
   useEffect(() => {
     const loadSavedData = async () => {
       try {
         const savedDriver = await loadDriver();
         const savedSessions = await loadSessions();
-
-        // Restore authenticated driver from storage
-        if (savedDriver) {
-          setCurrentDriverState(savedDriver);
-        }
-
+        if (savedDriver) setCurrentDriverState(savedDriver);
         if (savedSessions && Array.isArray(savedSessions)) {
           setSessionHistory(savedSessions);
         }
+
+        // Crash recovery: if the app was killed during monitoring, a stale session
+        // ID is left in AsyncStorage. End it on the backend so the next launch
+        // won't get the 400 "already has an active session" error.
+        const staleSessionId = await AsyncStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+        if (staleSessionId) {
+          console.warn("[Session] Found stale session from crash — ending it:", staleSessionId);
+          try {
+            await sessionService.endSession("interrupted", "App was terminated unexpectedly");
+          } catch {
+            // Best-effort: ignore if backend already cleaned it up
+          } finally {
+            await AsyncStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+          }
+        }
       } catch (error) {
         console.error("Error loading saved data:", error);
-        // Don't throw error, just log it - app should still work
       } finally {
         setIsLoading(false);
       }
     };
-
     loadSavedData();
   }, []);
 
-  // Set current driver and persist
-  const setCurrentDriver = async (driver: Driver | null) => {
+  const setCurrentDriver = useCallback(async (driver: Driver | null) => {
     try {
       setCurrentDriverState(driver);
       if (driver) {
         await saveDriver(driver);
+      } else {
+        await clearDriver();
+        await tokenManager.deleteToken();
+        setActiveSession(null);
       }
     } catch (error) {
       console.error("Error setting current driver:", error);
-      // Don't throw, just log - state is already updated
     }
-  };
+  }, []);
 
-  // Start a new monitoring session
-  const startSession = async () => {
+  const startSession = useCallback(async () => {
     if (!currentDriver) {
       console.warn("❌ Cannot start session: No driver selected");
       return;
     }
 
     try {
-      // Call backend API: POST /driver/newsession (JWT attached by apiClient interceptor)
       const backendSession = await sessionService.startSession();
 
       const newSession: ActiveSession = {
         id: backendSession.session_id,
         driverId: currentDriver.id,
         startTime: backendSession.start_time,
-        events: [],
+        counts: { ALERT: 0, DROWSY: 0, DISTRACTED: 0 },
+        confidenceSum: 0,
+        recentEvents: [],
       };
 
       setActiveSession(newSession);
+      // Persist session ID so a crash recovery can clean it up on next launch
+      await AsyncStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, backendSession.session_id);
       console.log("✅ Session started on backend:", backendSession.session_id);
     } catch (error: any) {
-      // 401 Unauthorized — token expired or invalid: force logout
       if (error instanceof AuthError) {
-        console.warn(
-          "🔐 Auth error starting session — clearing session and redirecting to login",
-        );
+        console.warn("🔐 Auth error in startSession — clearing stored session");
         await tokenManager.deleteToken();
         await clearDriver();
         setCurrentDriverState(null);
         setActiveSession(null);
-        router.replace("/(auth)/login");
+        return;
+      }
+      // If it's a network error, create an offline local session instead of crashing
+      if (error.message?.includes("Network Error") || error.message?.includes("Check your connection") || error.message?.includes("Failed to fetch")) {
+        console.warn("⚠️ Backend unreachable. Starting offline local session.");
+        const localSessionId = `local_${Date.now()}`;
+        const newSession: ActiveSession = {
+          id: localSessionId,
+          driverId: currentDriver.id,
+          startTime: new Date().toISOString(),
+          counts: { ALERT: 0, DROWSY: 0, DISTRACTED: 0 },
+          confidenceSum: 0,
+          recentEvents: [],
+        };
+        setActiveSession(newSession);
+        await AsyncStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, localSessionId);
         return;
       }
 
-      // Non-auth failure (network issue, already-active session, etc.) — surface error to caller
       console.error("❌ Failed to start session:", error.message);
-      throw error; // Let monitoring.tsx catch and show Alert to user
+      throw error;
     }
-  };
+  }, [currentDriver]);
 
-  // Add an event to the current session with memory management
-  const addSessionEvent = (state: DriverState, confidence: number) => {
-    if (!activeSession) {
-      console.warn("⚠️ Cannot add event: No active session");
-      return;
-    }
+  /**
+   * BUG 4 FIX: O(1) counter increment instead of O(n) array spread.
+   * Only the last RECENT_EVENTS_LIMIT events are kept for display.
+   */
+  const addSessionEvent = useCallback((state: DriverState, confidence: number, features: Record<string, unknown> = {}) => {
+    setActiveSession((prev) => {
+      if (!prev) return prev;
 
-    const event = {
-      timestamp: new Date().toISOString(),
-      state,
-      confidence,
-    };
+      const newCounts: StateCounts = {
+        ...prev.counts,
+        [state]: prev.counts[state] + 1,
+      };
 
-    // Create updated events array
-    const updatedEvents = [...activeSession.events, event];
+      const newEvent = {
+        timestamp: new Date().toISOString(),
+        state,
+        confidence,
+      };
 
-    // Memory management: Prune oldest events if exceeding threshold
-    if (updatedEvents.length > EVENT_PRUNE_THRESHOLD) {
-      console.warn(
-        `⚠️ Event count (${updatedEvents.length}) exceeded threshold - pruning oldest ${EVENT_PRUNE_BATCH} events`,
-      );
-      updatedEvents.splice(0, EVENT_PRUNE_BATCH);
-    }
+      const newRecent =
+        prev.recentEvents.length >= RECENT_EVENTS_LIMIT
+          ? [...prev.recentEvents.slice(1), newEvent]
+          : [...prev.recentEvents, newEvent];
 
-    // Log periodically (every 10 events) to reduce console spam
-    if (updatedEvents.length % 10 === 0) {
-      console.log(
-        `📝 Events: ${
-          updatedEvents.length
-        } | Latest: ${state} (${confidence.toFixed(0)}%)`,
-      );
-    }
-
-    setActiveSession({
-      ...activeSession,
-      events: updatedEvents,
+      return { 
+        ...prev, 
+        counts: newCounts, 
+        confidenceSum: prev.confidenceSum + confidence,
+        recentEvents: newRecent 
+      };
     });
-  };
 
-  // End the current session and calculate statistics
-  const endSession = async (): Promise<Session | null> => {
-    if (!activeSession) {
+    if (activeSession) {
+      sendDriverEvent({
+        session_id: activeSession.id,
+        state: state,
+        confidence: confidence,
+        features: features,
+      }).catch(() => {
+        // Queue for offline sync if network fails
+        failedEventsQueueRef.current.push({
+          session_id: activeSession.id,
+          state: state,
+          confidence: confidence,
+          features: features,
+        });
+      });
+    }
+  }, [activeSession]);
+
+  const endSession = useCallback(async (): Promise<Session | null> => {
+    if (!activeSession || !activeSession.id) {
       console.warn("⚠️ Cannot end session: No active session");
       return null;
     }
 
-    if (!activeSession.id) {
-      console.warn("⚠️ Cannot end session: session_id is null or undefined");
-      return null;
-    }
-
     if (isEndingSessionRef.current) {
-      console.warn(
-        "⚠️ endSession already in progress, skipping duplicate call",
-      );
+      console.warn("⚠️ endSession already in progress");
       return null;
     }
 
@@ -195,58 +223,57 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const endTime = new Date().toISOString();
-      const startTime = new Date(activeSession.startTime);
-      const endTimeDate = new Date(endTime);
       const durationSeconds = Math.floor(
-        (endTimeDate.getTime() - startTime.getTime()) / 1000,
+        (new Date(endTime).getTime() - new Date(activeSession.startTime).getTime()) / 1000,
       );
 
-      // Calculate state breakdown
-      const stateBreakdown = {
-        ALERT: 0,
-        DROWSY: 0,
-        DISTRACTED: 0,
-      };
+      const stateBreakdown = { ...activeSession.counts };
+      const totalFrames =
+        stateBreakdown.ALERT + stateBreakdown.DROWSY + stateBreakdown.DISTRACTED || 1;
 
-      activeSession.events.forEach((event) => {
-        if (event && event.state) {
-          stateBreakdown[event.state]++;
-        }
-      });
+      const alertPct = (stateBreakdown.ALERT / totalFrames) * 100;
+      const drowsyPct = (stateBreakdown.DROWSY / totalFrames) * 100;
+      const distractedPct = (stateBreakdown.DISTRACTED / totalFrames) * 100;
 
-      // Calculate attention score (0-100)
-      const totalEvents = activeSession.events.length || 1;
-      const alertPercentage = (stateBreakdown.ALERT / totalEvents) * 100;
-      const drowsyPercentage = (stateBreakdown.DROWSY / totalEvents) * 100;
-      const distractedPercentage =
-        (stateBreakdown.DISTRACTED / totalEvents) * 100;
-
-      // Percentages for display
       const percentages = {
-        ALERT: Number(alertPercentage.toFixed(1)),
-        DROWSY: Number(drowsyPercentage.toFixed(1)),
-        DISTRACTED: Number(distractedPercentage.toFixed(1)),
+        ALERT: Number(alertPct.toFixed(1)),
+        DROWSY: Number(drowsyPct.toFixed(1)),
+        DISTRACTED: Number(distractedPct.toFixed(1)),
       };
 
-      // Weighted score: ALERT=100, DISTRACTED=50, DROWSY=0
-      const attentionScore = Math.round(
-        alertPercentage * 1.0 +
-          distractedPercentage * 0.5 +
-          drowsyPercentage * 0.0,
-      );
+      const attentionScore = Math.round(alertPct * 1.0 + distractedPct * 0.5);
 
-      // Call backend API to end session (if not local)
+      // Flush offline queue if any events failed during the session
+      if (failedEventsQueueRef.current.length > 0) {
+        console.log(`[Session] Flushing ${failedEventsQueueRef.current.length} queued offline events...`);
+        await Promise.allSettled(
+          failedEventsQueueRef.current.map((event) => sendDriverEvent(event))
+        );
+        failedEventsQueueRef.current = [];
+      }
+
       if (!activeSession.id.startsWith("local_")) {
         try {
-          await sessionService.endSession(
-            "completed",
-            "User stopped monitoring",
-          );
-          console.log("✅ Session ended on backend");
+          // Sync all final tallies to the database first
+          await updateSessionMetrics({
+            session_id: activeSession.id,
+            total_frames_processed_increment: totalFrames,
+            alert_frames_increment: stateBreakdown.ALERT,
+            drowsy_frames_increment: stateBreakdown.DROWSY,
+            distracted_frames_increment: stateBreakdown.DISTRACTED,
+            average_confidence: Number((activeSession.confidenceSum / totalFrames).toFixed(3)),
+            attention_score: attentionScore
+          });
+
+          await sessionService.endSession("completed", "Completed");
+          console.log("✅ Session metrics and end status synced on backend");
         } catch (error: any) {
           console.error("⚠️ Failed to end session on backend:", error.message);
         }
       }
+
+      // Clear the crash-recovery key now that the session ended cleanly
+      await AsyncStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
 
       const completedSession: Session = {
         id: activeSession.id,
@@ -255,44 +282,36 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
         endTime,
         duration: durationSeconds,
         attentionScore,
-        events: activeSession.events,
+        events: [],
         stateBreakdown,
         percentages,
       };
 
-      // Add to history and save
       const updatedHistory = [completedSession, ...sessionHistory];
       setSessionHistory(updatedHistory);
-
-      // Save asynchronously, don't wait
-      saveSessions(updatedHistory).catch((err) => {
-        console.error("Failed to save session:", err);
-      });
+      saveSessions(updatedHistory).catch((err) =>
+        console.error("Failed to save session:", err),
+      );
 
       return completedSession;
     } catch (error) {
       console.error("Error ending session:", error);
       return null;
     } finally {
-      // Always clear session state to avoid stale or duplicate end calls.
       setActiveSession(null);
       isEndingSessionRef.current = false;
     }
-  };
+  }, [activeSession, sessionHistory]);
 
-  // Load session history from storage
   const loadHistory = async () => {
     try {
       const sessions = await loadSessions();
-      if (sessions && Array.isArray(sessions)) {
-        setSessionHistory(sessions);
-      }
+      if (sessions && Array.isArray(sessions)) setSessionHistory(sessions);
     } catch (error) {
       console.error("Error loading session history:", error);
     }
   };
 
-  // Clear all session history
   const clearHistory = async () => {
     try {
       setSessionHistory([]);
@@ -302,7 +321,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Delete individual session
   const deleteSession = async (sessionId: string) => {
     try {
       const updatedHistory = sessionHistory.filter((s) => s.id !== sessionId);
@@ -310,7 +328,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
       await saveSessions(updatedHistory);
     } catch (error) {
       console.error("Error deleting session:", error);
-      // Revert on error
       await loadHistory();
     }
   };
@@ -334,7 +351,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// Custom hook to use the session context
 export const useSession = () => {
   const context = useContext(SessionContext);
   if (context === undefined) {

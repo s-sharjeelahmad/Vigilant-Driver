@@ -1,7 +1,7 @@
 import apiClient, { tokenManager } from './apiClient';
 
 export interface LoginCredentials {
-  driver_id: string;
+  username: string;
   password: string;
 }
 
@@ -43,17 +43,29 @@ export interface DriverUpdate {
 
 class AuthService {
   /**
-   * Login with driver ID and password
+   * Login with username and password (OAuth2 form data)
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
-      const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
+      // Standard JSON payload matching the Pydantic schema perfectly
+      const payload = {
+        driver_id: credentials.username, // We map the CNIC/Email to the 'driver_id' key
+        password: credentials.password
+      };
+
+      const response = await apiClient.post<LoginResponse>(
+        '/auth/login', 
+        payload
+      );
       
       // Save token to secure storage
       await tokenManager.saveToken(response.data.access_token);
       
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422) {
+        console.error("FastAPI 422 Error Details:", JSON.stringify(error.response.data.detail, null, 2));
+      }
       if (error.response?.status === 404) {
         throw new Error('Driver not found');
       } else if (error.response?.status === 400) {

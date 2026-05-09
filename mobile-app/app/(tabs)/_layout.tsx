@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
+import { FontWeights, Shadow } from "@/src/utils/constants";
 
 export default function TabLayout() {
   const { colors } = useTheme();
@@ -12,11 +13,20 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: colors.surfaceElevated,
           borderTopWidth: 1,
-          borderTopColor: colors.divider,
+          borderTopColor: colors.cardBorder,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+          ...Shadow.medium,
         },
         tabBarInactiveTintColor: colors.textSecondary,
+        tabBarLabelStyle: {
+          fontWeight: FontWeights.semibold,
+          fontSize: 11,
+          marginTop: -4,
+        },
       }}
     >
       <Tabs.Screen
@@ -25,8 +35,8 @@ export default function TabLayout() {
           title: "Dashboard",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "home" : "home-outline"}
-              size={28}
+              name={focused ? "grid" : "grid-outline"}
+              size={24}
               color={color}
             />
           ),
@@ -35,11 +45,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: "History",
+          title: "Logs",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "list" : "list-outline"}
-              size={28}
+              name={focused ? "stats-chart" : "stats-chart-outline"}
+              size={24}
               color={color}
             />
           ),

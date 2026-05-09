@@ -7,6 +7,7 @@ import { Spacing, FontSizes, FontWeights } from "@/src/utils/constants";
 interface GradientHeaderProps {
   title: string;
   subtitle?: string;
+  rightElement?: React.ReactNode;
   children?: React.ReactNode;
   style?: ViewStyle;
 }
@@ -14,6 +15,7 @@ interface GradientHeaderProps {
 export default function GradientHeader({
   title,
   subtitle,
+  rightElement,
   children,
   style,
 }: GradientHeaderProps) {
@@ -27,13 +29,15 @@ export default function GradientHeader({
 
   return (
     <LinearGradient
-      colors={[colors.primary, colors.primary]}
+      colors={['#1E4DB7', '#2E6CF6']} // Fixed to brand gradient
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={[styles.header, style]}
     >
       <View style={styles.content}>
         <View style={styles.textContainer}>
           <Text
-            style={[styles.title, { fontSize: getFontSize(FontSizes.xxl) }]}
+            style={[styles.title, { fontSize: getFontSize(FontSizes.xl) }]}
           >
             {title}
           </Text>
@@ -45,6 +49,7 @@ export default function GradientHeader({
             </Text>
           )}
         </View>
+        {rightElement}
         {children}
       </View>
     </LinearGradient>
@@ -67,10 +72,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: FontWeights.bold,
-    color: "#FFF",
+    color: "#FFFFFF",
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    color: "rgba(255, 255, 255, 0.9)",
+    color: "rgba(255, 255, 255, 0.85)",
   },
 });

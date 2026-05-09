@@ -8,7 +8,6 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
@@ -20,6 +19,8 @@ import {
 } from "@/src/utils/constants";
 import { useSession } from "@/src/context/SessionContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import GradientHeader from "@/src/components/common/GradientHeader";
+import StatCard from "@/src/components/stats/StatCard";
 
 export default function ProfileScreen() {
   const { currentDriver, sessionHistory, setCurrentDriver, clearHistory } =
@@ -63,8 +64,8 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      "Logout",
-      "Are you sure you want to logout? Your session history will be preserved.",
+      "Secure Logout",
+      "Are you sure you want to logout? Telemetry data is synced to the cloud.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -81,383 +82,133 @@ export default function ProfileScreen() {
 
   const handleClearHistory = () => {
     Alert.alert(
-      "Clear History",
-      "This will permanently delete all your session history. This action cannot be undone.",
+      "Purge Telemetry",
+      "This will permanently delete all local session history. Cloud backups may persist.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Clear All",
+          text: "Purge All",
           style: "destructive",
           onPress: async () => {
             await clearHistory();
-            Alert.alert("Success", "Session history cleared!");
+            Alert.alert("Success", "Local history purged.");
           },
         },
       ],
     );
   };
 
-  if (!currentDriver) {
-    return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
-      >
-        <View style={styles.centerContent}>
-          <Ionicons
-            name="person-circle-outline"
-            size={64}
-            color={colors.textSecondary}
-          />
-          <Text
-            style={[
-              styles.messageText,
-              {
-                color: colors.textSecondary,
-                fontSize: getFontSize(FontSizes.md),
-              },
-            ]}
-          >
-            No driver logged in
-          </Text>
-          <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.replace("/(auth)/login")}
-          >
-            <Text
-              style={[
-                styles.loginButtonText,
-                { fontSize: getFontSize(FontSizes.md) },
-              ]}
-            >
-              Go to Login
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (!currentDriver) return null;
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <GradientHeader
+        title={currentDriver.name}
+        subtitle={currentDriver.cnic}
+        showProfile={false}
+      />
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header with Gradient */}
-        <LinearGradient
-          colors={[colors.primary, colors.primary]}
-          style={styles.header}
-        >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.push("/(tabs)")}
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={64} color="#FFF" />
-          </View>
-          <Text
-            style={[
-              styles.driverName,
-              { fontSize: getFontSize(FontSizes.xxl) },
-            ]}
-          >
-            {currentDriver.name}
-          </Text>
-          <Text
-            style={[styles.driverCnic, { fontSize: getFontSize(FontSizes.md) }]}
-          >
-            {currentDriver.cnic}
-          </Text>
-          {currentDriver.phone && (
-            <View style={styles.phoneContainer}>
-              <Ionicons
-                name="call"
-                size={16}
-                color="rgba(255, 255, 255, 0.9)"
-              />
-              <Text
-                style={[
-                  styles.driverPhone,
-                  { fontSize: getFontSize(FontSizes.sm) },
-                ]}
-              >
-                {currentDriver.phone}
-              </Text>
-            </View>
-          )}
-        </LinearGradient>
-
-        {/* Stats Cards */}
+        {/* STATS GRID */}
         <View style={styles.statsSection}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-            ]}
-          >
-            Your Statistics
-          </Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Driver Performance</Text>
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Ionicons name="calendar" size={32} color={colors.primary} />
-              <Text
-                style={[
-                  styles.statValue,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-                ]}
-              >
-                {totalSessions}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: getFontSize(FontSizes.xs),
-                  },
-                ]}
-              >
-                Total Sessions
-              </Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Ionicons name="time" size={32} color={colors.info} />
-              <Text
-                style={[
-                  styles.statValue,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-                ]}
-              >
-                {formatDuration(totalDuration)}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: getFontSize(FontSizes.xs),
-                  },
-                ]}
-              >
-                Total Time
-              </Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Ionicons name="star" size={32} color={colors.warning} />
-              <Text
-                style={[
-                  styles.statValue,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-                ]}
-              >
-                {avgScore}%
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: getFontSize(FontSizes.xs),
-                  },
-                ]}
-              >
-                Avg Score
-              </Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Ionicons name="warning" size={32} color={colors.error} />
-              <Text
-                style={[
-                  styles.statValue,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-                ]}
-              >
-                {totalAlerts}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: getFontSize(FontSizes.xs),
-                  },
-                ]}
-              >
-                Total Alerts
-              </Text>
-            </View>
+            <StatCard
+              label="TRIPS"
+              value={String(totalSessions)}
+              icon="calendar"
+              iconColor={colors.primary}
+            />
+            <StatCard
+              label="DRIVE TIME"
+              value={formatDuration(totalDuration)}
+              icon="time"
+              iconColor={colors.info}
+            />
+            <StatCard
+              label="AVG SCORE"
+              value={`${avgScore}%`}
+              icon="star"
+              iconColor={colors.warning}
+            />
+            <StatCard
+              label="EVENTS"
+              value={String(totalAlerts)}
+              icon="warning"
+              iconColor={colors.error}
+            />
           </View>
         </View>
 
-        {/* Account Actions */}
-        <View style={styles.actionsSection}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-            ]}
-          >
-            Account
-          </Text>
-
-          <TouchableOpacity
-            style={[styles.actionItem, { backgroundColor: colors.card }]}
-            onPress={() => router.push("/(tabs)")}
-          >
-            <View style={styles.actionLeft}>
-              <Ionicons name="home" size={24} color={colors.primary} />
-              <Text
-                style={[
-                  styles.actionText,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.md) },
-                ]}
-              >
-                Dashboard
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={colors.textSecondary}
+        {/* ACCOUNT MANAGEMENT */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Management</Text>
+          <View style={[styles.actionGroup, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <ActionRow
+              icon="create"
+              label="Edit Driver Profile"
+              onPress={() => router.push("/edit-profile")}
+              colors={colors}
             />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionItem, { backgroundColor: colors.card }]}
-            onPress={() => router.push("/edit-profile")}
-          >
-            <View style={styles.actionLeft}>
-              <Ionicons name="create" size={24} color={colors.info} />
-              <Text
-                style={[
-                  styles.actionText,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.md) },
-                ]}
-              >
-                Edit Profile
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={colors.textSecondary}
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+            <ActionRow
+              icon="settings"
+              label="System Configuration"
+              onPress={() => router.push("/settings")}
+              colors={colors}
             />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionItem, { backgroundColor: colors.card }]}
-            onPress={() => router.push("/settings")}
-          >
-            <View style={styles.actionLeft}>
-              <Ionicons name="settings" size={24} color={colors.warning} />
-              <Text
-                style={[
-                  styles.actionText,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.md) },
-                ]}
-              >
-                Settings & Personalization
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={colors.textSecondary}
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+            <ActionRow
+              icon="trash"
+              label="Purge Local Telemetry"
+              onPress={handleClearHistory}
+              isDestructive
+              colors={colors}
             />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionItem, { backgroundColor: colors.card }]}
-            onPress={() =>
-              Alert.alert("Coming Soon", "Notification settings coming soon!")
-            }
-          >
-            <View style={styles.actionLeft}>
-              <Ionicons name="notifications" size={24} color={colors.info} />
-              <Text
-                style={[
-                  styles.actionText,
-                  { color: colors.text, fontSize: getFontSize(FontSizes.md) },
-                ]}
-              >
-                Notifications
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionItem, { backgroundColor: colors.card }]}
-            onPress={handleClearHistory}
-          >
-            <View style={styles.actionLeft}>
-              <Ionicons name="trash" size={24} color={colors.error} />
-              <Text
-                style={[
-                  styles.actionText,
-                  { color: colors.error, fontSize: getFontSize(FontSizes.md) },
-                ]}
-              >
-                Clear History
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Logout Button */}
+        {/* SESSION ACTIONS */}
         <TouchableOpacity
-          style={[
-            styles.logoutButton,
-            { backgroundColor: colors.card, borderColor: colors.error },
-          ]}
+          style={[styles.logoutButton, { borderColor: colors.error }]}
           onPress={handleLogout}
         >
-          <Ionicons name="log-out" size={24} color={colors.error} />
-          <Text
-            style={[
-              styles.logoutText,
-              { color: colors.error, fontSize: getFontSize(FontSizes.md) },
-            ]}
-          >
-            Logout
-          </Text>
+          <Ionicons name="log-out" size={20} color={colors.error} />
+          <Text style={[styles.logoutText, { color: colors.error }]}>TERMINATE SESSION</Text>
         </TouchableOpacity>
 
-        {/* Footer Info */}
         <View style={styles.footer}>
-          <Text
-            style={[
-              styles.footerText,
-              { color: colors.textLight, fontSize: getFontSize(FontSizes.xs) },
-            ]}
-          >
-            Vigilant Driver v1.0
-          </Text>
-          <Text
-            style={[
-              styles.footerText,
-              { color: colors.textLight, fontSize: getFontSize(FontSizes.xs) },
-            ]}
-          >
-            © 2025 FYP Project
+          <Text style={[styles.footerText, { color: colors.textLight }]}>
+            Vigilant Driver Enterprise v1.4.2
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+function ActionRow({ icon, label, onPress, isDestructive, colors }: any) {
+  return (
+    <TouchableOpacity style={styles.actionRow} onPress={onPress}>
+      <View style={styles.actionLeft}>
+        <Ionicons 
+          name={icon} 
+          size={22} 
+          color={isDestructive ? colors.error : colors.primary} 
+        />
+        <Text style={[
+          styles.actionLabel, 
+          { color: isDestructive ? colors.error : colors.text }
+        ]}>
+          {label}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+    </TouchableOpacity>
   );
 }
 
@@ -469,138 +220,70 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
+    padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: Spacing.xl,
-  },
-  messageText: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  loginButton: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.md,
-  },
-  loginButtonText: {
-    fontWeight: FontWeights.semibold,
-    color: "#FFF",
-  },
-  header: {
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xxl,
-    paddingHorizontal: Spacing.lg,
-    alignItems: "center",
-    borderBottomLeftRadius: BorderRadius.xl,
-    borderBottomRightRadius: BorderRadius.xl,
-    position: "relative",
-  },
-  backButton: {
-    position: "absolute",
-    top: Spacing.xl,
-    left: Spacing.lg,
-    zIndex: 10,
-    padding: Spacing.xs,
-  },
-  avatarContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: Spacing.md,
-    borderWidth: 4,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  driverName: {
-    fontWeight: FontWeights.bold,
-    color: "#FFF",
-    marginBottom: Spacing.xs,
-  },
-  driverCnic: {
-    color: "rgba(255, 255, 255, 0.9)",
-    marginBottom: Spacing.sm,
-  },
-  phoneContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-  },
-  driverPhone: {
-    color: "rgba(255, 255, 255, 0.9)",
   },
   statsSection: {
-    padding: Spacing.lg,
-    paddingTop: Spacing.xl,
-    marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  section: {
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
+    fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
     marginBottom: Spacing.md,
   },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
-  statCard: {
-    flex: 1,
-    minWidth: "47%",
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    alignItems: "center",
+  actionGroup: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    overflow: "hidden",
     ...Shadow.small,
   },
-  statValue: {
-    fontWeight: FontWeights.bold,
-    marginTop: Spacing.sm,
-  },
-  statLabel: {
-    marginTop: Spacing.xs,
-    textAlign: "center",
-  },
-  actionsSection: {
-    padding: Spacing.lg,
-  },
-  actionItem: {
+  actionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    ...Shadow.small,
+    padding: Spacing.lg,
   },
   actionLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
   },
-  actionText: {
-    fontWeight: FontWeights.medium,
+  actionLabel: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+  },
+  divider: {
+    height: 1,
+    marginLeft: Spacing.lg + 34,
   },
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: Spacing.lg,
-    padding: Spacing.md,
+    padding: Spacing.lg,
     borderRadius: BorderRadius.md,
+    borderWidth: 1,
     gap: Spacing.sm,
-    borderWidth: 2,
+    marginTop: Spacing.md,
   },
   logoutText: {
-    fontWeight: FontWeights.semibold,
+    fontWeight: FontWeights.bold,
+    letterSpacing: 1,
   },
   footer: {
+    marginTop: Spacing.xxl,
     alignItems: "center",
-    marginTop: Spacing.xl,
-    gap: Spacing.xs,
   },
-  footerText: {},
+  footerText: {
+    fontSize: 12,
+    fontWeight: FontWeights.medium,
+  },
 });

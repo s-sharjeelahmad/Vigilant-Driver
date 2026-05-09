@@ -10,7 +10,7 @@ import {
   Shadow,
 } from "@/src/utils/constants";
 import { Session } from "@/src/types";
-import { formatDate, formatTime, getScoreColor } from "@/src/utils/helpers";
+import { formatDate, formatTime, formatSessionTime, calculateDuration, getScoreColor } from "@/src/utils/helpers";
 
 interface SessionCardProps {
   session: Session;
@@ -32,12 +32,14 @@ export default function SessionCard({
   };
 
   const date = formatDate(session.startTime);
-  const duration = formatTime(session.duration);
+  const clockTime = formatSessionTime(session.startTime);
+  const realDurationSeconds = calculateDuration(session.startTime, session.endTime);
+  const duration = formatTime(realDurationSeconds);
   const scoreColor = getScoreColor(session.attentionScore);
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.card }]}
+      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -47,24 +49,24 @@ export default function SessionCard({
         onPress={onDelete}
         activeOpacity={0.7}
       >
-        <Ionicons name="trash-outline" size={20} color={colors.error} />
+        <Ionicons name="trash-outline" size={18} color={colors.error} />
       </TouchableOpacity>
 
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="calendar" size={20} color={colors.primary} />
+          <Ionicons name="calendar-outline" size={18} color={colors.textLight} />
           <Text
             style={[
               styles.dateText,
-              { color: colors.text, fontSize: getFontSize(FontSizes.md) },
+              { color: colors.text, fontSize: getFontSize(FontSizes.sm) },
             ]}
           >
-            {date}
+            {date} • {clockTime}
           </Text>
         </View>
         <View
-          style={[styles.scoreBadge, { backgroundColor: `${scoreColor}20` }]}
+          style={[styles.scoreBadge, { backgroundColor: `${scoreColor}15` }]}
         >
           <Text
             style={[
@@ -80,7 +82,7 @@ export default function SessionCard({
       {/* Stats */}
       <View style={[styles.stats, { borderColor: colors.divider }]}>
         <View style={styles.statItem}>
-          <Ionicons name="time" size={18} color={colors.textSecondary} />
+          <Ionicons name="timer-outline" size={16} color={colors.textSecondary} />
           <Text
             style={[
               styles.statText,
@@ -95,7 +97,7 @@ export default function SessionCard({
         </View>
         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.statItem}>
-          <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+          <Ionicons name="shield-checkmark-outline" size={16} color={colors.success} />
           <Text
             style={[
               styles.statText,
@@ -110,7 +112,7 @@ export default function SessionCard({
         </View>
         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.statItem}>
-          <Ionicons name="warning" size={18} color={colors.error} />
+          <Ionicons name="warning-outline" size={16} color={colors.error} />
           <Text
             style={[
               styles.statText,
@@ -131,15 +133,15 @@ export default function SessionCard({
         <Text
           style={[
             styles.footerText,
-            { color: colors.textLight, fontSize: getFontSize(FontSizes.xs) },
+            { color: colors.textMuted, fontSize: getFontSize(FontSizes.xs) },
           ]}
         >
-          Tap to view details
+          View Telemetry
         </Text>
         <Ionicons
-          name="chevron-forward"
-          size={20}
-          color={colors.textSecondary}
+          name="arrow-forward"
+          size={16}
+          color={colors.textMuted}
         />
       </View>
     </TouchableOpacity>
@@ -150,13 +152,14 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    ...Shadow.medium,
+    borderWidth: 1,
+    ...Shadow.small,
     position: "relative",
   },
   deleteButton: {
     position: "absolute",
-    top: Spacing.sm,
-    right: Spacing.sm,
+    top: Spacing.md,
+    right: Spacing.md,
     zIndex: 10,
     padding: Spacing.xs,
     borderRadius: BorderRadius.sm,
@@ -166,18 +169,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: Spacing.md,
+    paddingRight: Spacing.xl, // Space for delete button
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   dateText: {
-    fontWeight: FontWeights.semibold,
+    fontWeight: FontWeights.medium,
   },
   scoreBadge: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: BorderRadius.sm,
   },
   scoreText: {
@@ -186,8 +190,8 @@ const styles = StyleSheet.create({
   stats: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: Spacing.sm,
+    justifyContent: "space-between",
+    paddingVertical: Spacing.md,
     borderTopWidth: 1,
     borderBottomWidth: 1,
   },
@@ -198,14 +202,20 @@ const styles = StyleSheet.create({
   },
   divider: {
     width: 1,
-    height: 20,
+    height: 16,
   },
-  statText: {},
+  statText: {
+    fontWeight: FontWeights.medium,
+  },
   footer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: Spacing.sm,
   },
-  footerText: {},
+  footerText: {
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    fontWeight: FontWeights.semibold,
+  },
 });

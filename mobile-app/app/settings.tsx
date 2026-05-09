@@ -8,7 +8,6 @@ import {
   Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
@@ -38,272 +37,138 @@ export default function SettingsScreen() {
   };
 
   const accentColors: { name: string; value: AccentColor; color: string }[] = [
-    { name: "Blue", value: "blue", color: "#2196F3" },
-    { name: "Green", value: "green", color: "#4CAF50" },
-    { name: "Purple", value: "purple", color: "#9C27B0" },
-    { name: "Orange", value: "orange", color: "#FF9800" },
-    { name: "Red", value: "red", color: "#F44336" },
+    { name: "Fleet Blue", value: "blue", color: "#2E6CF6" },
+    { name: "Safety Green", value: "green", color: "#2ECC71" },
+    { name: "Vivid Purple", value: "purple", color: "#9B59B6" },
+    { name: "Alert Orange", value: "orange", color: "#E67E22" },
+    { name: "Critical Red", value: "red", color: "#E74C3C" },
   ];
 
-  const fontSizes: { name: string; value: "small" | "medium" | "large" }[] = [
-    { name: "Small", value: "small" },
-    { name: "Medium", value: "medium" },
-    { name: "Large", value: "large" },
+  const fontSizes: { name: string; value: "small" | "medium" | "large"; desc: string }[] = [
+    { name: "Compact", value: "small", desc: "Maximize information density" },
+    { name: "Standard", value: "medium", desc: "Balanced for daily use" },
+    { name: "Enhanced", value: "large", desc: "Improved legibility" },
   ];
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.appHeader, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.appHeaderTitle, { color: colors.text }]}>Configuration</Text>
+        <View style={styles.headerRight} />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <LinearGradient
-          colors={[colors.primary, colors.primary]}
-          style={styles.header}
-        >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Settings & Personalization</Text>
-        </LinearGradient>
-
-        {/* Theme Section */}
+        {/* Appearance Section */}
         <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, fontSize: getFontSize(FontSizes.lg) },
-            ]}
-          >
-            Appearance
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: getFontSize(12) }]}>
+            VISUAL APPEARANCE
           </Text>
 
-          <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
+          <View style={[styles.settingGroup, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <Ionicons
-                  name={theme === "dark" ? "moon" : "sunny"}
-                  size={24}
-                  color={colors.primary}
-                />
-                <View>
-                  <Text
-                    style={[
-                      styles.settingTitle,
-                      {
-                        color: colors.text,
-                        fontSize: getFontSize(FontSizes.md),
-                      },
-                    ]}
-                  >
-                    Dark Mode
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingDescription,
-                      {
-                        color: colors.textSecondary,
-                        fontSize: getFontSize(FontSizes.sm),
-                      },
-                    ]}
-                  >
-                    {theme === "dark" ? "Enabled" : "Disabled"}
-                  </Text>
-                </View>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingTitle, { color: colors.text, fontSize: getFontSize(FontSizes.md) }]}>
+                  Enterprise Dark Mode
+                </Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary, fontSize: getFontSize(FontSizes.sm) }]}>
+                  High-contrast surfaces for night operation
+                </Text>
               </View>
               <Switch
                 value={theme === "dark"}
                 onValueChange={toggleTheme}
-                trackColor={{ false: colors.border, true: colors.primary }}
+                trackColor={{ false: colors.cardBorder, true: colors.primary }}
                 thumbColor="#FFF"
               />
             </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+
+            <View style={styles.colorSection}>
+              <Text style={[styles.settingTitle, { color: colors.text, fontSize: getFontSize(FontSizes.md), marginBottom: Spacing.md }]}>
+                Accent Palette
+              </Text>
+              <View style={styles.colorGrid}>
+                {accentColors.map((color) => (
+                  <TouchableOpacity
+                    key={color.value}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color.color },
+                      accentColor === color.value && { borderColor: colors.text, borderWidth: 3 }
+                    ]}
+                    onPress={() => setAccentColor(color.value)}
+                  >
+                    {accentColor === color.value && (
+                      <Ionicons name="checkmark" size={20} color="#FFF" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Accent Color Section */}
+        {/* Accessibility Section */}
         <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, fontSize: getFontSize(FontSizes.lg) },
-            ]}
-          >
-            Accent Color
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: getFontSize(12) }]}>
+            ACCESSIBILITY
           </Text>
-          <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
-            <View style={styles.colorGrid}>
-              {accentColors.map((color) => (
+
+          <View style={[styles.settingGroup, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            {fontSizes.map((size, index) => (
+              <React.Fragment key={size.value}>
                 <TouchableOpacity
-                  key={color.value}
-                  style={[
-                    styles.colorOption,
-                    {
-                      backgroundColor: color.color,
-                      borderWidth: accentColor === color.value ? 4 : 0,
-                      borderColor: colors.text,
-                    },
-                  ]}
-                  onPress={() => setAccentColor(color.value)}
-                  activeOpacity={0.7}
+                  style={styles.fontSizeOption}
+                  onPress={() => setFontSize(size.value)}
+                  activeOpacity={0.6}
                 >
-                  {accentColor === color.value && (
-                    <Ionicons name="checkmark" size={24} color="#FFF" />
-                  )}
+                  <View style={styles.settingInfo}>
+                    <Text style={[
+                      styles.settingTitle, 
+                      { color: colors.text, fontSize: getFontSize(FontSizes.md) },
+                      fontSize === size.value && { color: colors.primary, fontWeight: FontWeights.bold }
+                    ]}>
+                      {size.name}
+                    </Text>
+                    <Text style={[styles.settingDesc, { color: colors.textSecondary, fontSize: getFontSize(FontSizes.sm) }]}>
+                      {size.desc}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.radioCircle, 
+                    { borderColor: fontSize === size.value ? colors.primary : colors.divider },
+                    fontSize === size.value && { backgroundColor: colors.primary }
+                  ]}>
+                    {fontSize === size.value && <View style={styles.radioInner} />}
+                  </View>
                 </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.colorLabels}>
-              {accentColors.map((color) => (
-                <Text
-                  key={color.value}
-                  style={[
-                    styles.colorLabel,
-                    {
-                      color:
-                        accentColor === color.value
-                          ? colors.text
-                          : colors.textSecondary,
-                      fontWeight: accentColor === color.value ? "700" : "400",
-                      fontSize: getFontSize(FontSizes.sm),
-                    },
-                  ]}
-                >
-                  {color.name}
-                </Text>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Font Size Section */}
-        <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, fontSize: getFontSize(FontSizes.lg) },
-            ]}
-          >
-            Font Size
-          </Text>
-          <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
-            {fontSizes.map((size) => (
-              <TouchableOpacity
-                key={size.value}
-                style={[
-                  styles.fontSizeOption,
-                  {
-                    backgroundColor:
-                      fontSize === size.value
-                        ? `${colors.primary}20`
-                        : "transparent",
-                    borderColor:
-                      fontSize === size.value ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setFontSize(size.value)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.fontSizeLabel,
-                    {
-                      color:
-                        fontSize === size.value ? colors.primary : colors.text,
-                      fontSize:
-                        size.value === "small"
-                          ? FontSizes.sm
-                          : size.value === "large"
-                            ? FontSizes.lg
-                            : FontSizes.md,
-                    },
-                  ]}
-                >
-                  {size.name}
-                </Text>
-                {fontSize === size.value && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={24}
-                    color={colors.primary}
-                  />
+                {index < fontSizes.length - 1 && (
+                  <View style={[styles.divider, { backgroundColor: colors.divider, marginLeft: 0 }]} />
                 )}
-              </TouchableOpacity>
+              </React.Fragment>
             ))}
           </View>
         </View>
 
-        {/* Preview Section */}
-        <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, fontSize: getFontSize(FontSizes.lg) },
-            ]}
-          >
-            Preview
-          </Text>
-          <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
-            <View style={styles.previewContent}>
-              <Ionicons name="eye-outline" size={32} color={colors.primary} />
-              <Text
-                style={[
-                  styles.previewTitle,
-                  {
-                    color: colors.text,
-                    fontSize: getFontSize(FontSizes.xl),
-                  },
-                ]}
-              >
-                Theme Preview
-              </Text>
-              <Text
-                style={[
-                  styles.previewDescription,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: getFontSize(FontSizes.md),
-                  },
-                ]}
-              >
-                Sample Text
-              </Text>
-              <Text
-                style={[
-                  styles.previewDescription,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: getFontSize(FontSizes.sm),
-                  },
-                ]}
-              >
-                This is how your text will look with current settings
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Footer */}
+        {/* System Info */}
         <View style={styles.footer}>
-          <Text
-            style={[
-              styles.footerText,
-              { color: colors.textLight, fontSize: getFontSize(FontSizes.sm) },
-            ]}
-          >
-            Theme: {theme === "dark" ? "Dark" : "Light"} • Color: {accentColor}{" "}
-            • Font: {fontSize}
+          <Text style={[styles.footerText, { color: colors.textLight }]}>
+            Vigilant Driver Mobile v1.4.2
+          </Text>
+          <Text style={[styles.footerText, { color: colors.textLight }]}>
+            Enterprise Fleet Analytics System
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -311,114 +176,105 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  appHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    paddingTop: 48,
+  },
+  backIcon: { padding: Spacing.xs },
+  appHeaderTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+  },
+  headerRight: { width: 32 },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
+    padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
-  },
-  backButton: {
-    padding: Spacing.xs,
-  },
-  headerTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    color: "#FFF",
-    flex: 1,
-  },
   section: {
-    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
-    fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
+    letterSpacing: 1,
+    paddingLeft: 4,
   },
-  settingCard: {
+  settingGroup: {
     borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    borderWidth: 1,
+    overflow: "hidden",
     ...Shadow.small,
   },
   settingRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    padding: Spacing.lg,
   },
-  settingLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+  settingInfo: {
     flex: 1,
+    marginRight: Spacing.md,
   },
   settingTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.semibold,
+    fontWeight: FontWeights.bold,
   },
-  settingDescription: {
-    fontSize: FontSizes.sm,
+  settingDesc: {
     marginTop: 2,
+    lineHeight: 18,
+  },
+  divider: {
+    height: 1,
+    marginLeft: Spacing.lg,
+  },
+  colorSection: {
+    padding: Spacing.lg,
   },
   colorGrid: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: Spacing.sm,
+    justifyContent: "space-between",
   },
   colorOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    ...Shadow.small,
-  },
-  colorLabels: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  colorLabel: {
-    fontSize: FontSizes.xs,
-    width: 50,
-    textAlign: "center",
   },
   fontSizeOption: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
-    marginBottom: Spacing.sm,
-  },
-  fontSizeLabel: {
-    fontWeight: FontWeights.semibold,
-  },
-  previewContent: {
+    justifyContent: "center",
     alignItems: "center",
-    paddingVertical: Spacing.lg,
   },
-  previewTitle: {
-    fontWeight: FontWeights.bold,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  previewDescription: {
-    textAlign: "center",
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FFF",
   },
   footer: {
+    marginTop: Spacing.xl,
     alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
+    gap: 4,
   },
   footerText: {
-    fontSize: FontSizes.xs,
-    textAlign: "center",
+    fontSize: 12,
+    fontWeight: FontWeights.medium,
   },
 });

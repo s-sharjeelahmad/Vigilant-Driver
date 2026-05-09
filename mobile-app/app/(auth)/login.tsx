@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   View,
   Text,
   TextInput,
@@ -8,8 +9,8 @@ import {
   ScrollView,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
@@ -18,17 +19,23 @@ import {
   FontSizes,
   FontWeights,
   Shadow,
-  API_BASE_URL,
 } from "@/src/utils/constants";
 import { useSession } from "@/src/context/SessionContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { authService } from "@/src/services/authService";
+import ActionButton from "@/src/components/common/ActionButton";
 
 export default function LoginScreen() {
-  const [driverId, setDriverId] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { setCurrentDriver } = useSession();
+  const [isValidatingToken, setIsValidatingToken] = useState(false);
+  const {
+    currentDriver,
+    isLoading: isSessionLoading,
+    setCurrentDriver,
+  } = useSession();
   const { colors, fontSize } = useTheme();
 
   const getFontSize = (base: number) => {
@@ -37,14 +44,39 @@ export default function LoginScreen() {
     return base * multiplier;
   };
 
+  useEffect(() => {
+    if (isSessionLoading || !currentDriver) return;
+
+    setIsValidatingToken(true);
+
+    const timeoutPromise = new Promise<"timeout">((resolve) =>
+      setTimeout(() => resolve("timeout"), 4000),
+    );
+
+    Promise.race([authService.getCurrentDriver(), timeoutPromise])
+      .then((result) => {
+        if (result === "timeout") {
+          console.warn("[Auth] Token validation timed out — proceeding offline-first");
+        }
+        router.replace("/(tabs)");
+      })
+      .catch(() => {
+        void setCurrentDriver(null);
+      })
+      .finally(() => {
+        setIsValidatingToken(false);
+      });
+  }, [currentDriver, isSessionLoading, setCurrentDriver]);
+
+
   const handleLogin = async () => {
-    const trimmedId = driverId.trim();
+    const trimmedIdentifier = identifier.trim();
     const trimmedPassword = password.trim();
 
-    if (!trimmedId || !trimmedPassword) {
+    if (!trimmedIdentifier || !trimmedPassword) {
       Alert.alert(
         "Missing Credentials",
-        "Please enter both Driver ID and Password.",
+        "Please enter both CNIC/Email and Password.",
       );
       return;
     }
@@ -52,17 +84,13 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      const loginUrl = `${API_BASE_URL}/auth/login`;
-      console.log("[Login] Calling backend endpoint:", loginUrl);
-
       await authService.login({
-        driver_id: trimmedId,
+        username: trimmedIdentifier,
         password: trimmedPassword,
       });
 
       const driverProfile = await authService.getCurrentDriver();
 
-      // Persisted by SessionContext storage service so login survives app restarts.
       await setCurrentDriver({
         id: driverProfile.driver_id,
         name: driverProfile.full_name,
@@ -81,177 +109,110 @@ export default function LoginScreen() {
     }
   };
 
-  return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header with Gradient */}
-      <LinearGradient
-        colors={[colors.primary, colors.primary]}
-        style={styles.header}
-      >
-        <View style={styles.logoContainer}>
-          <Ionicons name="car-sport" size={64} color="#FFF" />
-        </View>
-        <Text style={[styles.title, { fontSize: getFontSize(FontSizes.xxxl) }]}>
-          Vigilant Driver
-        </Text>
-        <Text
-          style={[styles.subtitle, { fontSize: getFontSize(FontSizes.md) }]}
-        >
-          Real-time Driver Monitoring System
-        </Text>
-      </LinearGradient>
-
-      {/* Login Card */}
-      <View style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.cardHeader}>
-          <Ionicons
-            name="person-circle-outline"
-            size={32}
-            color={colors.primary}
-          />
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-            ]}
-          >
-            Driver Login
-          </Text>
-        </View>
-
-        {/* Driver ID Input */}
-        <Text
-          style={[
-            styles.label,
-            { color: colors.text, fontSize: getFontSize(FontSizes.md) },
-          ]}
-        >
-          Driver ID
-        </Text>
-        <View
-          style={[
-            styles.pickerContainer,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[styles.input, { color: colors.text }]}
-            placeholder="Enter your Driver ID (UUID)"
-            placeholderTextColor={colors.textSecondary}
-            value={driverId}
-            onChangeText={setDriverId}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="default"
-          />
-        </View>
-
-        {/* Password Input */}
-        <Text
-          style={[
-            styles.label,
-            { color: colors.text, fontSize: getFontSize(FontSizes.md) },
-          ]}
-        >
-          Password
-        </Text>
-        <View
-          style={[
-            styles.pickerContainer,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[styles.input, { color: colors.text }]}
-            placeholder="Enter your password"
-            placeholderTextColor={colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
-
-        {/* Login Button */}
-        <TouchableOpacity
-          style={[
-            styles.loginButton,
-            (!driverId || !password || isLoading) && styles.loginButtonDisabled,
-          ]}
-          onPress={handleLogin}
-          disabled={!driverId || !password || isLoading}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={
-              driverId && password && !isLoading
-                ? [colors.primary, colors.primary]
-                : ["#BDBDBD", "#9E9E9E"]
-            }
-            style={styles.loginButtonGradient}
-          >
-            {isLoading ? (
-              <Text
-                style={[
-                  styles.loginButtonText,
-                  { fontSize: getFontSize(FontSizes.lg) },
-                ]}
-              >
-                Signing in...
-              </Text>
-            ) : (
-              <>
-                <Text
-                  style={[
-                    styles.loginButtonText,
-                    { fontSize: getFontSize(FontSizes.lg) },
-                  ]}
-                >
-                  Start Monitoring
-                </Text>
-                <Ionicons name="arrow-forward" size={24} color="#FFF" />
-              </>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* Info Banner */}
-        <View
-          style={[styles.infoBanner, { backgroundColor: `${colors.info}15` }]}
-        >
-          <Ionicons name="information-circle" size={20} color={colors.info} />
-          <Text
-            style={[
-              styles.infoBannerText,
-              { color: colors.info, fontSize: getFontSize(FontSizes.sm) },
-            ]}
-          >
-            Enter the Driver ID and Password provided by your company admin.
-          </Text>
-        </View>
+  if (isSessionLoading || isValidatingToken) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
+    );
+  }
 
-      {/* Footer */}
-      <Text
-        style={[
-          styles.footer,
-          { color: colors.textLight, fontSize: getFontSize(FontSizes.xs) },
-        ]}
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
       >
-        Powered by AI • Secure • Real-time Monitoring
-      </Text>
-    </ScrollView>
+        {/* Branding Section */}
+        <View style={styles.brandingSection}>
+          <View style={[styles.logoIcon, { backgroundColor: colors.primary }]}>
+            <Ionicons name="shield-checkmark" size={48} color="#FFFFFF" />
+          </View>
+          <Text style={[styles.title, { color: colors.text, fontSize: getFontSize(FontSizes.xl) }]}>
+            Vigilant Driver
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: getFontSize(FontSizes.md) }]}>
+            Enterprise Fleet Safety Monitoring
+          </Text>
+        </View>
+
+        {/* Login Form */}
+        <View style={[styles.formContainer, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.formTitle, { color: colors.text, fontSize: getFontSize(FontSizes.lg) }]}>
+            Sign In
+          </Text>
+          
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.textSecondary, fontSize: getFontSize(FontSizes.sm) }]}>
+              CNIC OR EMAIL
+            </Text>
+            <View style={[styles.inputWrapper, { borderColor: colors.cardBorder, backgroundColor: colors.background }]}>
+              <Ionicons name="person-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="Enter identifier"
+                placeholderTextColor={colors.textLight}
+                value={identifier}
+                onChangeText={setIdentifier}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.textSecondary, fontSize: getFontSize(FontSizes.sm) }]}>
+              PASSWORD
+            </Text>
+            <View style={[styles.inputWrapper, { borderColor: colors.cardBorder, backgroundColor: colors.background }]}>
+              <Ionicons name="lock-closed-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textLight}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={colors.textLight}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ActionButton
+            title={isLoading ? "Authenticating..." : "Sign In"}
+            onPress={handleLogin}
+            disabled={!identifier || !password || isLoading}
+            style={styles.loginButton}
+          />
+
+          <View style={[styles.infoBox, { backgroundColor: `${colors.info}10` }]}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.info} />
+            <Text style={[styles.infoText, { color: colors.info, fontSize: getFontSize(FontSizes.xs) }]}>
+              Credentials provided by your organization admin.
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[styles.footerText, { color: colors.textMuted, fontSize: getFontSize(FontSizes.xs) }]}>
+          © 2024 Vigilant Driver System • v1.2.0
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -261,115 +222,89 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Platform.OS === "ios" ? 100 : 80,
     paddingBottom: Spacing.xl,
   },
-  header: {
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingBottom: Spacing.xxl,
-    paddingHorizontal: Spacing.lg,
+  brandingSection: {
     alignItems: "center",
-    borderBottomLeftRadius: BorderRadius.xl,
-    borderBottomRightRadius: BorderRadius.xl,
+    marginBottom: Spacing.xxl,
   },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  logoIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: Spacing.md,
+    ...Shadow.medium,
   },
   title: {
     fontWeight: FontWeights.bold,
-    color: "#FFF",
-    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    color: "rgba(255, 255, 255, 0.9)",
-    textAlign: "center",
+    marginTop: 4,
+    fontWeight: FontWeights.medium,
   },
-  card: {
-    marginHorizontal: Spacing.lg,
-    marginTop: -Spacing.xl,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+  formContainer: {
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    borderWidth: 1,
     ...Shadow.large,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  cardTitle: {
+  formTitle: {
     fontWeight: FontWeights.bold,
+    marginBottom: Spacing.xl,
+    textAlign: "center",
+  },
+  inputGroup: {
+    marginBottom: Spacing.lg,
   },
   label: {
-    fontWeight: FontWeights.semibold,
+    fontWeight: FontWeights.bold,
+    letterSpacing: 1,
     marginBottom: Spacing.sm,
   },
-  pickerContainer: {
-    borderRadius: BorderRadius.md,
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    marginBottom: Spacing.md,
-    overflow: "hidden",
+    borderRadius: BorderRadius.md,
+    height: 56,
+    paddingHorizontal: Spacing.md,
+  },
+  inputIcon: {
+    marginRight: Spacing.sm,
   },
   input: {
-    height: 50,
-    paddingHorizontal: Spacing.md,
-    fontSize: FontSizes.md,
-  },
-  driverInfo: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  infoLabel: {
-    fontWeight: FontWeights.medium,
-    width: 60,
-  },
-  infoValue: {
-    fontWeight: FontWeights.semibold,
     flex: 1,
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.medium,
+  },
+  eyeIcon: {
+    padding: Spacing.xs,
   },
   loginButton: {
-    borderRadius: BorderRadius.md,
-    overflow: "hidden",
-    marginBottom: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
   },
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
-  loginButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-  },
-  loginButtonText: {
-    fontWeight: FontWeights.bold,
-    color: "#FFF",
-  },
-  infoBanner: {
+  infoBox: {
     flexDirection: "row",
     alignItems: "center",
     padding: Spacing.md,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
     gap: Spacing.sm,
   },
-  infoBannerText: {
+  infoText: {
     flex: 1,
+    fontWeight: FontWeights.medium,
+    lineHeight: 16,
   },
-  footer: {
+  footerText: {
     textAlign: "center",
-    marginTop: Spacing.xl,
+    marginTop: "auto",
+    paddingTop: Spacing.xxl,
+    fontWeight: FontWeights.semibold,
   },
 });

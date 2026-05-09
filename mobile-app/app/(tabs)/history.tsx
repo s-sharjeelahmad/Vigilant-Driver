@@ -8,7 +8,6 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
@@ -16,40 +15,43 @@ import {
   BorderRadius,
   FontSizes,
   FontWeights,
-  Shadow,
 } from "@/src/utils/constants";
 import { useSession } from "@/src/context/SessionContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { formatDate, formatTime, getScoreColor } from "@/src/utils/helpers";
+import {
+  formatDate,
+  formatTime,
+  formatSessionTime,
+  calculateDuration,
+  getScoreColor,
+} from "@/src/utils/helpers";
 import { Session } from "@/src/types";
 
 export default function HistoryScreen() {
   const { sessionHistory, currentDriver, deleteSession } = useSession();
-  const { colors, fontSize } = useTheme();
+  const { colors, theme } = useTheme();
+
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(
-    new Set(),
+    new Set()
   );
 
-  const getFontSize = (base: number) => {
-    const multiplier =
-      fontSize === "small" ? 0.9 : fontSize === "large" ? 1.1 : 1;
-    return base * multiplier;
+  const getDriveStatus = (score: number) => {
+    if (score >= 90) return { label: "SAFE", color: colors.success };
+    if (score >= 75) return { label: "MODERATE", color: colors.info };
+    if (score >= 50) return { label: "WARNING", color: colors.warning };
+    return { label: "CRITICAL", color: colors.error };
   };
 
   const toggleSelection = (sessionId: string) => {
-    const newSelection = new Set(selectedSessions);
-    if (newSelection.has(sessionId)) {
-      newSelection.delete(sessionId);
+    const updated = new Set(selectedSessions);
+    if (updated.has(sessionId)) {
+      updated.delete(sessionId);
     } else {
-      newSelection.add(sessionId);
+      updated.add(sessionId);
     }
-    setSelectedSessions(newSelection);
-
-    // Exit selection mode if no items selected
-    if (newSelection.size === 0) {
-      setSelectionMode(false);
-    }
+    setSelectedSessions(updated);
+    if (updated.size === 0) setSelectionMode(false);
   };
 
   const handleLongPress = (sessionId: string) => {
@@ -63,454 +65,269 @@ export default function HistoryScreen() {
   };
 
   const handleDeleteSelected = () => {
-    const count = selectedSessions.size;
-    Alert.alert(
-      "Delete Sessions",
-      `Are you sure you want to delete ${count} session${
-        count > 1 ? "s" : ""
-      }? This action cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            for (const sessionId of selectedSessions) {
-              await deleteSession(sessionId);
-            }
-            setSelectionMode(false);
-            setSelectedSessions(new Set());
-            Alert.alert(
-              "Success",
-              `${count} session${count > 1 ? "s" : ""} deleted successfully!`,
-            );
-          },
+    Alert.alert("Purge Logs", "Permanently remove selected telemetry logs?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          for (const sessionId of selectedSessions) {
+            await deleteSession(sessionId);
+          }
+          setSelectionMode(false);
+          setSelectedSessions(new Set());
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const renderSessionCard = ({ item }: { item: Session }) => {
     const scoreColor = getScoreColor(item.attentionScore);
+    const status = getDriveStatus(item.attentionScore);
     const date = formatDate(item.startTime);
-    const duration = formatTime(item.duration);
+    const clockTime = formatSessionTime(item.startTime);
+    const realDurationSeconds = calculateDuration(item.startTime, item.endTime);
+    const duration = formatTime(realDurationSeconds);
     const isSelected = selectedSessions.has(item.id);
-
-    const handleCardPress = () => {
-      if (selectionMode) {
-        toggleSelection(item.id);
-      } else {
-        // TODO: Create session-summary screen
-        Alert.alert(
-          "Session Details",
-          `Date: ${date}\nDuration: ${duration}\nScore: ${item.attentionScore}%\n\nAlert: ${item.stateBreakdown.ALERT}\nDrowsy: ${item.stateBreakdown.DROWSY}\nDistracted: ${item.stateBreakdown.DISTRACTED}`,
-        );
-      }
-    };
+    const totalIssues = item.stateBreakdown.DROWSY + item.stateBreakdown.DISTRACTED;
 
     return (
       <TouchableOpacity
-        style={[
-          styles.sessionCard,
-          { backgroundColor: colors.card },
-          isSelected && {
-            backgroundColor: `${colors.primary}20`,
-            borderColor: colors.primary,
-            borderWidth: 2,
-          },
-        ]}
-        onPress={handleCardPress}
+        activeOpacity={0.8}
+        onPress={() => {
+          if (selectionMode) {
+            toggleSelection(item.id);
+          } else {
+            router.push({
+              pathname: "/session-summary",
+              params: { sessionId: item.id },
+            });
+          }
+        }}
         onLongPress={() => handleLongPress(item.id)}
-        activeOpacity={0.7}
+        style={[
+          styles.card,
+          { backgroundColor: colors.card, borderColor: isSelected ? colors.primary : colors.border },
+          isSelected && { backgroundColor: theme === 'dark' ? 'rgba(46, 108, 246, 0.1)' : 'rgba(46, 108, 246, 0.05)' },
+        ]}
       >
-        {/* Selection Indicator */}
-        {selectionMode && (
-          <View
-            style={[
-              styles.selectionIndicator,
-              {
-                backgroundColor: isSelected ? colors.primary : colors.border,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            {isSelected && <Ionicons name="checkmark" size={18} color="#FFF" />}
-          </View>
-        )}
-
-        {/* Header */}
         <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <Ionicons name="calendar" size={20} color={colors.primary} />
-            <Text
-              style={[
-                styles.dateText,
-                { color: colors.text, fontSize: getFontSize(FontSizes.md) },
-              ]}
-            >
-              {date}
+          <View style={styles.dateTimeWrap}>
+            <Text style={[styles.dateText, { color: colors.text }]}>{date}</Text>
+            <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+              {clockTime}
             </Text>
           </View>
-          <View
-            style={[styles.scoreBadge, { backgroundColor: `${scoreColor}20` }]}
-          >
-            <Text
-              style={[
-                styles.scoreText,
-                { color: scoreColor, fontSize: getFontSize(FontSizes.md) },
-              ]}
-            >
-              {item.attentionScore}%
-            </Text>
+          <View style={[styles.statusBadge, { backgroundColor: `${status.color}15` }]}>
+            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
           </View>
         </View>
 
-        {/* Stats */}
-        <View style={[styles.cardStats, { borderColor: colors.divider }]}>
-          <View style={styles.statItem}>
-            <Ionicons name="time" size={18} color={colors.textSecondary} />
-            <Text
-              style={[
-                styles.statText,
-                {
-                  color: colors.textSecondary,
-                  fontSize: getFontSize(FontSizes.sm),
-                },
-              ]}
-            >
-              {duration}
+        <View style={styles.cardBody}>
+          <View style={styles.scoreBlock}>
+            <Text style={[styles.scoreValue, { color: scoreColor }]}>
+              {item.attentionScore}
+            </Text>
+            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>
+              SCORE
             </Text>
           </View>
-          <View
-            style={[styles.statDivider, { backgroundColor: colors.divider }]}
-          />
-          <View style={styles.statItem}>
-            <Ionicons
-              name="checkmark-circle"
-              size={18}
-              color={colors.success}
-            />
-            <Text
-              style={[
-                styles.statText,
-                {
-                  color: colors.textSecondary,
-                  fontSize: getFontSize(FontSizes.sm),
-                },
-              ]}
-            >
-              {item?.stateBreakdown?.ALERT || 0} Alert
-            </Text>
-          </View>
-          <View
-            style={[styles.statDivider, { backgroundColor: colors.divider }]}
-          />
-          <View style={styles.statItem}>
-            <Ionicons name="warning" size={18} color={colors.error} />
-            <Text
-              style={[
-                styles.statText,
-                {
-                  color: colors.textSecondary,
-                  fontSize: getFontSize(FontSizes.sm),
-                },
-              ]}
-            >
-              {(item?.stateBreakdown?.DROWSY || 0) +
-                (item?.stateBreakdown?.DISTRACTED || 0)}{" "}
-              Issues
-            </Text>
-          </View>
-        </View>
 
-        {/* Footer */}
-        <View style={styles.cardFooter}>
-          <Text
-            style={[
-              styles.footerText,
-              { color: colors.textLight, fontSize: getFontSize(FontSizes.xs) },
-            ]}
-          >
-            Tap to view details
-          </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={colors.textSecondary}
-          />
+          <View style={[styles.dividerVertical, { backgroundColor: colors.divider }]} />
+
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: colors.text }]}>{duration}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>
+                DURATION
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: totalIssues > 0 ? colors.warning : colors.text }]}>
+                {totalIssues}
+              </Text>
+              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>
+                ISSUES
+              </Text>
+            </View>
+          </View>
+
+          <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
         </View>
       </TouchableOpacity>
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons
-        name="document-text-outline"
-        size={80}
-        color={colors.textLight}
-      />
-      <Text
-        style={[
-          styles.emptyTitle,
-          { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
-        ]}
-      >
-        No Sessions Yet
-      </Text>
-      <Text
-        style={[
-          styles.emptyText,
-          { color: colors.textSecondary, fontSize: getFontSize(FontSizes.md) },
-        ]}
-      >
-        Complete your first monitoring session to see your history here
-      </Text>
-      <TouchableOpacity
-        style={styles.startButton}
-        onPress={() => router.push("/monitoring")}
-      >
-        <LinearGradient
-          colors={[colors.primary, colors.primary]}
-          style={styles.startButtonGradient}
-        >
-          <Ionicons name="videocam" size={24} color="#FFF" />
-          <Text
-            style={[
-              styles.startButtonText,
-              { fontSize: getFontSize(FontSizes.md) },
-            ]}
-          >
-            Start Monitoring
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      {/* Header */}
-      <LinearGradient
-        colors={[colors.primary, colors.primary]}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          {selectionMode ? (
-            // Selection Mode Header
-            <>
-              <View style={styles.selectionHeader}>
-                <TouchableOpacity
-                  onPress={cancelSelection}
-                  style={styles.cancelButton}
-                >
-                  <Ionicons name="close" size={28} color="#FFF" />
-                </TouchableOpacity>
-                <Text
-                  style={[
-                    styles.selectionText,
-                    { fontSize: getFontSize(FontSizes.lg) },
-                  ]}
-                >
-                  {selectedSessions.size} Selected
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={handleDeleteSelected}
-                style={styles.deleteIconButton}
-              >
-                <Ionicons name="trash" size={28} color="#FFF" />
-              </TouchableOpacity>
-            </>
-          ) : (
-            // Normal Header
-            <>
-              <View>
-                <Text
-                  style={[
-                    styles.headerTitle,
-                    { fontSize: getFontSize(FontSizes.xxl) },
-                  ]}
-                >
-                  Session History
-                </Text>
-                <Text
-                  style={[
-                    styles.headerSubtitle,
-                    { fontSize: getFontSize(FontSizes.sm) },
-                  ]}
-                >
-                  {currentDriver?.name || "Driver"} • {sessionHistory.length}{" "}
-                  Sessions
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.profileButton}
-                onPress={() => router.push("/profile")}
-              >
-                <Ionicons name="person-circle-outline" size={40} color="#FFF" />
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </LinearGradient>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.appHeader, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
+        {selectionMode ? (
+          <View style={styles.selectionHeader}>
+            <TouchableOpacity onPress={cancelSelection} style={styles.iconButton}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.selectionText, { color: colors.text }]}>
+              {selectedSessions.size} Selected
+            </Text>
+            <TouchableOpacity onPress={handleDeleteSelected} style={styles.iconButton}>
+              <Ionicons name="trash-outline" size={24} color={colors.error} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>
+                Trip Telemetry
+              </Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+                Fleet Database • {sessionHistory.length} Logs
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => router.push("/profile")} 
+              style={[styles.profileBtn, { backgroundColor: colors.primary }]}
+            >
+              <Ionicons name="person" size={18} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
-      {/* Sessions List */}
       <FlatList
         data={sessionHistory}
         renderItem={renderSessionCard}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => (item.id ? `${item.id}-${index}` : String(index))}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={renderEmptyState}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.lg,
+  container: { flex: 1 },
+  appHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    paddingTop: 48,
   },
   headerContent: {
+    flex: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   headerTitle: {
+    fontSize: FontSizes.xl,
     fontWeight: FontWeights.bold,
-    color: "#FFF",
-    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: FontWeights.medium,
   },
-  profileButton: {
-    padding: Spacing.xs,
+  profileBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
   },
   selectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
     flex: 1,
-  },
-  cancelButton: {
-    padding: Spacing.xs,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   selectionText: {
     fontWeight: FontWeights.bold,
-    color: "#FFF",
+    fontSize: FontSizes.md,
   },
-  deleteIconButton: {
+  iconButton: {
     padding: Spacing.xs,
-  },
-  selectionIndicator: {
-    position: "absolute",
-    top: Spacing.md,
-    left: Spacing.md,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
   },
   listContent: {
     padding: Spacing.lg,
     gap: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
-  sessionCard: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    ...Shadow.medium,
-    position: "relative",
+  card: {
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    overflow: "hidden",
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
-  cardHeaderLeft: {
+  dateTimeWrap: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "baseline",
     gap: Spacing.sm,
   },
   dateText: {
-    fontWeight: FontWeights.semibold,
-  },
-  scoreBadge: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.sm,
-  },
-  scoreText: {
+    fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
   },
-  cardStats: {
+  timeText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.medium,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: FontWeights.bold,
+    letterSpacing: 0.5,
+  },
+  cardBody: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: Spacing.sm,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+  },
+  scoreBlock: {
+    width: 70,
+  },
+  scoreValue: {
+    fontSize: 28,
+    fontWeight: FontWeights.bold,
+    letterSpacing: -1,
+  },
+  dividerVertical: {
+    width: 1,
+    height: 36,
+    marginHorizontal: Spacing.lg,
+  },
+  statsGrid: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    gap: Spacing.xl,
   },
   statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-  },
-  statDivider: {
-    width: 1,
-    height: 20,
-  },
-  statText: {},
-  cardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: Spacing.sm,
-  },
-  footerText: {},
-  emptyState: {
-    flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing.xxl * 2,
-    paddingHorizontal: Spacing.xl,
   },
-  emptyTitle: {
+  statValue: {
+    fontSize: 18,
     fontWeight: FontWeights.bold,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
   },
-  emptyText: {
-    textAlign: "center",
-    marginBottom: Spacing.xl,
-  },
-  startButton: {
-    borderRadius: BorderRadius.lg,
-    overflow: "hidden",
-    ...Shadow.medium,
-  },
-  startButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  startButtonText: {
+  metricLabel: {
+    fontSize: 10,
     fontWeight: FontWeights.bold,
-    color: "#FFF",
+    letterSpacing: 0.5,
+    marginTop: 2,
   },
 });

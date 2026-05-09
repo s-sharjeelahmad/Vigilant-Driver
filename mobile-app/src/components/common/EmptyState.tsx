@@ -30,11 +30,13 @@ export default function EmptyState({
 
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={80} color={colors.textLight} />
+      <View style={[styles.iconContainer, { backgroundColor: colors.surfaceElevated, borderColor: colors.cardBorder }]}>
+        <Ionicons name={icon} size={48} color={colors.textMuted} />
+      </View>
       <Text
         style={[
           styles.title,
-          { color: colors.text, fontSize: getFontSize(FontSizes.xl) },
+          { color: colors.text, fontSize: getFontSize(FontSizes.lg) },
         ]}
       >
         {title}
@@ -42,7 +44,7 @@ export default function EmptyState({
       <Text
         style={[
           styles.message,
-          { color: colors.textSecondary, fontSize: getFontSize(FontSizes.md) },
+          { color: colors.textSecondary, fontSize: getFontSize(FontSizes.sm) },
         ]}
       >
         {message}
@@ -50,7 +52,7 @@ export default function EmptyState({
       {buttonTitle && onButtonPress && (
         <ActionButton
           title={buttonTitle}
-          icon="add-circle"
+          icon="add"
           onPress={onButtonPress}
           style={styles.button}
         />
@@ -64,17 +66,28 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing.xxl * 2,
+    paddingVertical: Spacing.xxl * 1.5,
     paddingHorizontal: Spacing.xl,
   },
+  iconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+  },
   title: {
-    fontWeight: FontWeights.bold,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
+    fontWeight: FontWeights.semibold,
+    marginBottom: Spacing.xs,
+    textAlign: "center",
   },
   message: {
     textAlign: "center",
     marginBottom: Spacing.xl,
+    maxWidth: "80%",
+    lineHeight: 20,
   },
   button: {
     minWidth: 200,

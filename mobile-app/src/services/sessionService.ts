@@ -135,6 +135,30 @@ class SessionService {
   }
 
   /**
+   * Fetch a session directly by its ID
+   */
+  async getSessionById(sessionId: string): Promise<SessionCreateResponse> {
+    if (!sessionId) {
+      throw new Error('Session ID is required');
+    }
+
+    try {
+      const response = await apiClient.get<SessionCreateResponse>(
+        `/driver/sessions/${sessionId}`,
+      );
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw new AuthError('Session expired. Please log in again.');
+      }
+      if (error.response?.status === 404) {
+        throw new Error('Session not found');
+      }
+      throw new Error('Failed to fetch session');
+    }
+  }
+
+  /**
    * Sync local session data with backend
    * This will be called periodically to update frame counts and metrics
    */

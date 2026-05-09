@@ -1,6 +1,5 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
@@ -8,14 +7,13 @@ import {
   BorderRadius,
   FontSizes,
   FontWeights,
-  Shadow,
 } from "@/src/utils/constants";
 
 interface ActionButtonProps {
   title: string;
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "outline";
   disabled?: boolean;
   style?: ViewStyle;
 }
@@ -36,40 +34,59 @@ export default function ActionButton({
     return base * multiplier;
   };
 
-  const getColors = (): [string, string] => {
-    if (disabled) return ["#BDBDBD", "#9E9E9E"];
-
+  const getBackgroundColor = () => {
+    if (disabled) return colors.cardBorder;
     switch (variant) {
       case "danger":
-        return [colors.error, colors.error];
+        return colors.error;
       case "secondary":
-        return [colors.card, colors.card];
+        return colors.surfaceElevated;
+      case "outline":
+        return "transparent";
       case "primary":
       default:
-        return [colors.primary, colors.primary];
+        return colors.primary;
     }
   };
 
-  const textColor = variant === "secondary" ? colors.text : "#FFF";
+  const getTextColor = () => {
+    if (disabled) return colors.textMuted;
+    if (variant === "secondary" || variant === "outline") return colors.text;
+    return "#FFFFFF";
+  };
+
+  const getBorderColor = () => {
+    if (disabled) return colors.cardBorder;
+    if (variant === "outline" || variant === "secondary") return colors.cardBorder;
+    return "transparent";
+  };
 
   return (
     <TouchableOpacity
-      style={[styles.button, disabled && styles.disabled, style]}
+      style={[
+        styles.button,
+        {
+          backgroundColor: getBackgroundColor(),
+          borderColor: getBorderColor(),
+          borderWidth: variant === "outline" || variant === "secondary" ? 1 : 0,
+        },
+        style,
+      ]}
       onPress={onPress}
       disabled={disabled}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
     >
-      <LinearGradient colors={getColors()} style={styles.gradient}>
-        {icon && <Ionicons name={icon} size={24} color={textColor} />}
+      <View style={styles.content}>
+        {icon && <Ionicons name={icon} size={20} color={getTextColor()} />}
         <Text
           style={[
             styles.text,
-            { color: textColor, fontSize: getFontSize(FontSizes.md) },
+            { color: getTextColor(), fontSize: getFontSize(FontSizes.md) },
           ]}
         >
           {title}
         </Text>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -77,21 +94,18 @@ export default function ActionButton({
 const styles = StyleSheet.create({
   button: {
     borderRadius: BorderRadius.md,
-    overflow: "hidden",
-    ...Shadow.medium,
+    minHeight: 48,
+    justifyContent: "center",
   },
-  disabled: {
-    opacity: 0.6,
-  },
-  gradient: {
+  content: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
   },
   text: {
-    fontWeight: FontWeights.bold,
+    fontWeight: FontWeights.semibold,
   },
 });

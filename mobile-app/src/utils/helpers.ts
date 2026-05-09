@@ -7,7 +7,26 @@ import { StateBreakdown } from '@/src/types';
 /**
  * Format seconds to MM:SS or HH:MM:SS
  */
-export const formatTime = (seconds: number): string => {
+export const formatTime = (timeInput: number | string): string => {
+  let seconds = 0;
+  
+  if (typeof timeInput === 'string') {
+    // If it's already HH:MM:SS format from backend (e.g., "00:00:11.619253")
+    if (timeInput.includes(':')) {
+      const parts = timeInput.split('.')[0].split(':'); // Drop milliseconds
+      if (parts.length >= 3) {
+        // If hours is 00, just return MM:SS, else HH:MM:SS
+        return parts[0] === '00' ? `${parts[1]}:${parts[2]}` : timeInput.split('.')[0];
+      }
+      return timeInput.split('.')[0];
+    }
+    seconds = parseFloat(timeInput);
+  } else {
+    seconds = timeInput;
+  }
+  
+  if (isNaN(seconds)) return "00:00";
+
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
@@ -23,18 +42,47 @@ export const formatTime = (seconds: number): string => {
 };
 
 /**
- * Format date to readable string
+ * Normalizes backend date strings (e.g., "2026-05-02 11:25:10.285286") 
+ * by replacing the space with 'T' and appending 'Z' so JS parses it as UTC.
+ */
+const parseUTCDate = (dateString: string): Date => {
+  let isoString = dateString;
+  if (isoString.includes(" ") && !isoString.includes("T")) {
+    isoString = isoString.replace(" ", "T");
+  }
+  // If it doesn't already have timezone info, assume UTC by appending Z
+  if (!isoString.endsWith("Z") && !isoString.match(/[+-]\d{2}:\d{2}$/)) {
+    isoString += "Z";
+  }
+  return new Date(isoString);
+};
+
+/**
+ * Format a UTC ISO date string to a human-readable date in Pakistan Standard Time (UTC+5).
+ * Example: "2026-05-02 10:57:00" → "2 May 2026"
  */
 export const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  const options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'short',
+  const date = parseUTCDate(dateString);
+  return date.toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
     day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+/**
+ * Format a UTC ISO date string to just the clock time in PKT.
+ * Example: "2026-05-02T10:57:00Z" → "3:57 PM"
+ */
+export const formatSessionTime = (dateString: string): string => {
+  const date = parseUTCDate(dateString);
+  return date.toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
     hour: '2-digit',
     minute: '2-digit',
-  };
-  return date.toLocaleDateString('en-US', options);
+    hour12: true,
+  });
 };
 
 /**
@@ -114,7 +162,7 @@ export const getStateEmoji = (state: string): string => {
  * Calculate session duration from start and end time
  */
 export const calculateDuration = (startTime: string, endTime: string): number => {
-  const start = new Date(startTime);
-  const end = new Date(endTime);
+  const start = parseUTCDate(startTime);
+  const end = parseUTCDate(endTime);
   return Math.floor((end.getTime() - start.getTime()) / 1000);
 };

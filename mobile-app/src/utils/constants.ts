@@ -2,38 +2,43 @@
  * App Constants - Colors, Theme, Config
  */
 
+import Constants from 'expo-constants';
+
 export const Colors = {
-  // Primary Brand Colors
-  primary: '#4CAF50', // Green - Alert/Safe
-  primaryDark: '#2E7D32',
-  primaryLight: '#81C784',
+  // Brand & Accent Colors
+  primary: '#2E6CF6', // Trustworthy enterprise blue
+  primaryDark: '#1E4DB7',
+  primaryLight: '#5B8EF7',
 
-  // State Colors
-  alert: '#4CAF50', // Green
-  drowsy: '#F44336', // Red
-  distracted: '#FF9800', // Orange
+  // Semantic State Colors
+  alert: '#10B981', // Emerald Safe
+  drowsy: '#EF4444', // Rose Critical
+  distracted: '#F59E0B', // Amber Warning
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  info: '#3B82F6',
 
-  // UI Colors
-  background: '#F5F5F5',
+  // Base Colors (Light Mode Default Fallbacks - Use ThemeContext for actual rendering)
+  background: '#F4F5F7',
   surface: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
   card: '#FFFFFF',
-  text: '#212121',
-  textSecondary: '#757575',
-  textLight: '#BDBDBD',
-  border: '#E0E0E0',
-  divider: '#EEEEEE',
-
-  // Status Colors
-  success: '#4CAF50',
-  error: '#F44336',
-  warning: '#FF9800',
-  info: '#2196F3',
+  cardBorder: '#E2E4E9',
+  
+  // Text Colors
+  text: '#111827',
+  textSecondary: '#6B7280',
+  textLight: '#9CA3AF',
+  border: '#E5E7EB',
+  divider: '#F3F4F6',
 
   // Gradients
-  gradientStart: '#4CAF50',
-  gradientEnd: '#2E7D32',
+  gradientStart: '#2E6CF6',
+  gradientEnd: '#1E4DB7',
 };
 
+// Strict 4px Grid Spacing
 export const Spacing = {
   xs: 4,
   sm: 8,
@@ -41,24 +46,27 @@ export const Spacing = {
   lg: 24,
   xl: 32,
   xxl: 48,
+  xxxl: 64,
 };
 
+// Subtle, modern radii
 export const BorderRadius = {
-  sm: 8,
-  md: 12,
+  sm: 6,
+  md: 10,
   lg: 16,
   xl: 24,
   round: 9999,
 };
 
+// Predictable Typography Hierarchy
 export const FontSizes = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
-  xl: 24,
-  xxl: 32,
-  xxxl: 48,
+  xs: 11, // Badges, fine print
+  sm: 13, // Secondary text, captions
+  md: 15, // Body text
+  lg: 18, // Subheaders, Buttons
+  xl: 24, // Screen Titles
+  xxl: 32, // Metrics
+  xxxl: 48, // Display Metrics (e.g. Score)
 };
 
 export const FontWeights = {
@@ -68,44 +76,28 @@ export const FontWeights = {
   bold: '700' as const,
 };
 
+// Premium, soft, multi-layered shadows
 export const Shadow = {
   small: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
   medium: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   large: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-};
-
-// Mock Drivers for Demo
-export const MOCK_DRIVERS = [
-  { id: 1, name: 'Syed Sharjeel Ahmad', cnic: '12345-1234567-1', phone: '0314-2020202' },
-  { id: 2, name: 'Abrar', cnic: '98765-9876543-2', phone: '0321-9876543' },
-  { id: 3, name: 'Areeb', cnic: '54321-5432109-3', phone: '0333-5432109' },
-];
-
-// AI Prediction Settings
-export const AI_CONFIG = {
-  predictionInterval: 4000, // 4 seconds
-  alertDistribution: {
-    ALERT: 0.7, // 70%
-    DROWSY: 0.2, // 20%
-    DISTRACTED: 0.1, // 10%
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
   },
 };
 
@@ -116,13 +108,51 @@ export const STORAGE_KEYS = {
 };
 
 // API Configuration
-// Change this to your backend URL
 // For local testing: use your computer's IP address (not localhost)
 // Find IP with: ipconfig (Windows) or ifconfig (Mac/Linux)
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL;
+const extractHost = (hostUri?: string | null) => {
+  if (!hostUri) return null;
+
+  const cleaned = hostUri
+    .replace(/^https?:\/\//, '')
+    .replace(/^exp\+.*?:\/\//, '')
+    .replace(/^exps?:\/\//, '');
+
+  const hostPort = cleaned.split('/')[0] || '';
+  const host = hostPort.split(':')[0];
+  return host || null;
+};
+
+const resolveDevHost = () => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants.manifest2?.extra?.expoClient?.hostUri as string | undefined);
+
+  return extractHost(hostUri);
+};
+
+const resolveApiBaseUrl = () => {
+  const rawValue = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const isAuto = !rawValue || rawValue.toLowerCase() === 'auto';
+
+  if (!isAuto) {
+    return rawValue;
+  }
+
+  const devHost = resolveDevHost();
+  if (devHost) {
+    return `http://${devHost}:8000`;
+  }
+
+  return rawValue || null;
+};
+
+const apiBaseUrl = resolveApiBaseUrl();
 
 if (!apiBaseUrl) {
-  throw new Error('Missing EXPO_PUBLIC_API_URL. Set it in mobile-app/.env before starting the app.');
+  throw new Error(
+    'Missing EXPO_PUBLIC_API_URL. Set it in mobile-app/.env (use "auto" for QR-based LAN).',
+  );
 }
 
 export const API_BASE_URL = apiBaseUrl;

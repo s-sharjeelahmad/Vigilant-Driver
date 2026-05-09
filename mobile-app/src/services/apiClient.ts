@@ -5,7 +5,8 @@ import { API_BASE_URL } from '@/src/utils/constants';
 // Create axios instance with base configuration
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  // 8 s is aggressive enough for Pakistani 4G/3G and fast enough to not freeze the UI
+  timeout: 8000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -38,26 +39,26 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     if (error.response) {
       const { status, data } = error.response;
-      
-      // Token expired or invalid
+
       if (status === 401) {
         await SecureStore.deleteItemAsync(TOKEN_KEY);
-        // You can add navigation to login here if needed
-        console.warn('Authentication failed - token may be expired');
+        console.warn('[API] 401 Unauthorized — token cleared');
+      } else if (status >= 500) {
+        // Server-side errors are always unexpected
+        console.error('[API] Server error:', { url: error.config?.url, status, data });
+      } else {
+        // 4xx are client/validation errors — service layer handles them; log as warn only
+        console.warn('[API] Client error:', { url: error.config?.url, status, data });
       }
-      
-      // Log error details for debugging
-      console.error('API Error:', {
-        url: error.config?.url,
-        status,
-        data,
-      });
+    } else if (error.code === 'ECONNABORTED') {
+      // Timeout — very common in Pakistan with load-shedding and 3G fallback
+      console.warn('[API] Request timed out:', error.config?.url);
     } else if (error.request) {
-      console.error('Network Error: No response received', error.message);
+      console.warn('[API] No response (offline?):', error.message);
     } else {
-      console.error('Request Error:', error.message);
+      console.error('[API] Request setup error:', error.message);
     }
-    
+
     return Promise.reject(error);
   }
 );
