@@ -1,209 +1,208 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ShieldCheck, Cpu, BarChart3, ArrowRight, Shield } from 'lucide-react';
+import { ShieldCheck, Cpu, ArrowRight, Eye, Lock, Globe, Zap } from 'lucide-react';
 
 function HomePage() {
+  // --- DYNAMIC DATA SIMULATION ---
+  // In a real scenario, these could be fetched from your /stats API endpoint
+  const [liveStats, setLiveStats] = useState({
+    riskScore: 42.8,
+    activeSessions: 26,
+    alerts: 3
+  });
+
+  // Simulate live engine updates for the UI
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveStats(prev => ({
+        ...prev,
+        riskScore: +(prev.riskScore + (Math.random() * 0.4 - 0.2)).toFixed(1),
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <>
+    <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100vh' }}>
       {/* Hero Section */}
       <section style={{ 
-        padding: '8rem 2rem 6rem', 
+        padding: '120px 2rem 80px', 
         position: 'relative',
-        overflow: 'hidden',
-        borderBottom: '1px solid var(--color-border)'
+        overflow: 'hidden'
       }}>
-        {/* Decorative Background */}
-        <div style={{
-          position: 'absolute',
-          top: 0, left: '50%',
-          transform: 'translateX(-50%)',
-          width: '100%', height: '100%',
-          zIndex: 0, opacity: 0.3,
-          pointerEvents: 'none'
-        }}>
-          <div style={{
-            position: 'absolute', top: 0, left: '25%', width: '400px', height: '400px',
-            background: 'var(--color-primary)', borderRadius: '50%', filter: 'blur(100px)', opacity: 0.4
-          }} />
-          <div style={{
-            position: 'absolute', bottom: 0, right: '25%', width: '400px', height: '400px',
-            background: 'var(--color-info)', borderRadius: '50%', filter: 'blur(100px)', opacity: 0.3
-          }} />
-        </div>
-
-        <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '4rem', alignItems: 'center' }}>
-            <div>
-              <div style={{ 
-                display: 'inline-flex', alignItems: 'center', gap: '0.5rem', 
-                padding: '0.25rem 0.75rem', borderRadius: 'var(--radius-full)', 
-                background: 'var(--color-primary-soft)', border: '1px solid var(--color-primary)', 
-                color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 700, 
-                textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.5rem'
+        {/* Responsive Container */}
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'row', 
+            flexWrap: 'wrap', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            gap: '40px' 
+          }}>
+            
+            {/* Left Content */}
+            <div style={{ flex: '1 1 500px' }}>
+              <h1 style={{ 
+                fontSize: 'clamp(2.5rem, 5vw, 4rem)', 
+                fontWeight: 900, 
+                color: 'var(--color-text-primary)', 
+                lineHeight: 1.1,
+                marginBottom: '24px',
+                letterSpacing: '-0.02em'
               }}>
-                <span style={{ position: 'relative', display: 'flex', width: '8px', height: '8px' }}>
-                  <span className="animate-ping" style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: 'var(--color-primary)', opacity: 0.75 }} />
-                  <span style={{ position: 'relative', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary)' }} />
-                </span>
-                Next-Gen Fleet Intelligence
-              </div>
-              <h1 className="ds-display-large" style={{ marginBottom: '1.5rem', lineHeight: 1.1, textWrap: 'balance' }}>
-                Turn Every Drive Into a <span style={{ 
-                  background: 'linear-gradient(to right, var(--color-primary), var(--color-info))',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                }}>Safer Decision</span>
+                Precision Monitoring for <br/>
+                <span style={{ color: 'var(--color-primary)' }}>Modern Fleets</span>
               </h1>
-              <p className="ds-body" style={{ fontSize: '1.125rem', marginBottom: '2.5rem', maxWidth: '600px', lineHeight: 1.7 }}>
-                Vigilant provides edge-AI driver monitoring and real-time safety assurance. Detect fatigue patterns, prevent distractions, and protect your fleet with trusted risk analytics.
+
+              <p style={{ 
+                fontSize: '18px', 
+                color: 'var(--color-text-muted)', 
+                lineHeight: 1.6, 
+                maxWidth: '500px',
+                marginBottom: '40px' 
+              }}>
+                Vigilant Driver uses on-device computer vision to detect fatigue and distraction in real-time. No cloud latency. No privacy compromises.
               </p>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <Link to="/login" className="btn-primary" style={{ padding: '1rem 2rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Login to Dashboard
-                  <ArrowRight size={18} />
-                </Link>
-                
-              </div>
+
+              <Link to="/login" className="btn-primary" style={{ 
+                padding: '16px 32px', 
+                fontSize: '16px', 
+                fontWeight: 700, 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                textDecoration: 'none'
+              }}>
+                Access Dashboard <ArrowRight size={20} />
+              </Link>
             </div>
 
-            {/* Mockup Visual */}
-            <div className="animate-float" style={{ position: 'relative', marginLeft: 'auto', marginRight: 'auto', width: '100%', maxWidth: '500px' }}>
-              <div className="card" style={{ padding: '1.5rem', boxShadow: 'var(--shadow-high)', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>Live Fleet Risk Snapshot</h3>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-error)' }} />
-                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-warning)' }} />
-                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-success)' }} />
+            {/* Right Visual - Dynamic Engine Card */}
+            <div style={{ flex: '1 1 400px', position: 'relative' }}>
+              <div style={{ 
+                background: 'var(--color-surface)', 
+                borderRadius: '24px', 
+                padding: '32px',
+                border: '1px solid var(--color-border)',
+                boxShadow: 'var(--shadow-high)',
+                position: 'relative',
+                zIndex: 2
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
+                  <TextLabel label="Engine Status" value="ACTIVE" color="var(--color-success)" />
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[1, 2, 3].map(i => <div key={i} style={{ width: '8px', height: '8px', borderRadius: '4px', background: 'var(--color-border)' }} />)}
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                  <div style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)' }}>
-                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: '0.25rem' }}>Fleet Risk Score</span>
-                    <span className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>42.8</span>
-                  </div>
-                  <div style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)' }}>
-                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: '0.25rem' }}>Active Sessions</span>
-                    <span className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>26</span>
-                  </div>
-                  <div style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', background: 'rgba(220, 38, 38, 0.05)', border: '1px solid rgba(220, 38, 38, 0.2)' }}>
-                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--color-error)', display: 'block', marginBottom: '0.25rem' }}>Critical Alerts</span>
-                    <span className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-error)' }}>03</span>
-                  </div>
-                  <div style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)' }}>
-                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: '0.25rem' }}>Status</span>
-                    <div style={{ marginTop: '0.25rem' }}>
-                      <span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', color: 'var(--color-warning)', fontSize: '0.65rem', fontWeight: 800 }}>MEDIUM RISK</span>
-                    </div>
-                  </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                  <StatItem label="Risk Index" value={liveStats.riskScore} />
+                  <StatItem label="Live Links" value={liveStats.activeSessions} />
                 </div>
-                
-                {/* Mock Chart */}
-                <div style={{ height: '8rem', width: '100%', background: 'var(--color-surface-elevated)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 1rem', overflow: 'hidden' }}>
-                  {[50, 75, 33, 66, 100, 60].map((h, i) => (
-                    <div key={i} style={{ width: '15%', height: `${h}%`, background: 'var(--color-primary)', borderTopLeftRadius: '4px', borderTopRightRadius: '4px', opacity: 0.8 }} />
+
+                {/* Dynamic Waveform Visual */}
+                <div style={{ 
+                  height: '80px', 
+                  display: 'flex', 
+                  alignItems: 'flex-end', 
+                  gap: '4px',
+                  background: 'var(--color-bg)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  overflow: 'hidden'
+                }}>
+                  {[40, 70, 45, 90, 65, 80, 30, 70, 50, 60, 85, 40].map((h, i) => (
+                    <div key={i} style={{ 
+                      flex: 1, 
+                      height: `${h}%`, 
+                      background: 'var(--color-primary)', 
+                      borderRadius: '2px',
+                      opacity: 0.3 + (i * 0.05) 
+                    }} />
                   ))}
                 </div>
               </div>
-
-              {/* Floating badge */}
-              <div style={{ position: 'absolute', bottom: '-1.5rem', left: '-1.5rem', background: 'var(--color-success)', color: '#fff', padding: '1rem', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-high)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.2)', borderRadius: 'var(--radius-sm)' }}>
-                  <ShieldCheck size={24} />
-                </div>
-                <div>
-                  <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', margin: '0 0 0.25rem', opacity: 0.9 }}>Safety Up</p>
-                  <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, lineHeight: 1 }}>+22%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section id="features" style={{ padding: '6rem 2rem', background: 'var(--color-bg)' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto 4rem' }}>
-            <h2 style={{ color: 'var(--color-primary)', fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Platform Capabilities</h2>
-            <h3 className="ds-display-medium" style={{ marginBottom: '1rem' }}>Built for Safety Operations</h3>
-            <p className="ds-body" style={{ fontSize: '1.125rem' }}>A high-performance toolkit designed for fleet managers and safety teams to mitigate risks before they escalate.</p>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
-            {[
-              { title: "Drowsiness Detection", desc: "Continuous eye and face monitoring to detect fatigue patterns in real-time.", icon: <Activity size={24} />, color: "var(--color-primary)" },
-              { title: "Distraction Alerts", desc: "Instant audio-visual alerts to drivers and push notifications to dispatchers.", icon: <Shield size={24} />, color: "var(--color-info)" },
-              { title: "Risk Score Engine", desc: "Deterministic safety scoring to prioritize interventions and improve driver accountability.", icon: <Cpu size={24} />, color: "var(--color-warning)" },
-              { title: "Analytics Insights", desc: "Clear, period-based metrics for sessions, events, and overall fleet health.", icon: <BarChart3 size={24} />, color: "var(--color-success)" }
-            ].map((feat, i) => (
-              <div key={i} className="card" style={{ padding: '2rem', transition: 'all 0.2s', border: '1px solid var(--color-border)', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.borderColor = 'var(--color-primary)'} onMouseOut={e => e.currentTarget.style.borderColor = 'var(--color-border)'}>
-                <div style={{ width: '48px', height: '48px', background: `${feat.color}20`, color: feat.color, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
-                  {feat.icon}
-                </div>
-                <h4 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>{feat.title}</h4>
-                <p className="ds-body" style={{ margin: 0 }}>{feat.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section id="how-it-works" style={{ padding: '6rem 2rem', background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-            <h3 className="ds-display-medium">Seamless Integration in 3 Steps</h3>
-          </div>
-          
-          <div style={{ position: 'relative' }}>
-            {/* Desktop connecting line */}
-            <div style={{ position: 'absolute', top: '24px', left: 0, width: '100%', height: '2px', background: 'var(--color-border)', zIndex: 0 }} className="hidden lg:block" />
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem', position: 'relative', zIndex: 1 }}>
-              {[
-                { step: 1, title: "Install Application", desc: "Install application on mobile and start monitoring through camera." },
-                { step: 2, title: "Monitor Real-time", desc: "Data is streamed to our cloud engine for instant threat detection and analysis." },
-                { step: 3, title: "Take Action", desc: "Receive alerts and use the dashboard to intervene or coach drivers effectively." }
-              ].map((item) => (
-                <div key={item.step} style={{ background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ width: '48px', height: '48px', background: 'var(--color-primary)', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.5rem', boxShadow: '0 4px 14px 0 rgba(79, 70, 229, 0.39)' }}>
-                    {item.step}
-                  </div>
-                  <h5 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--color-text-primary)' }}>{item.title}</h5>
-                  <p className="ds-body" style={{ maxWidth: '280px' }}>{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section style={{ padding: '6rem 2rem', background: 'var(--color-bg)' }}>
-        <div style={{ maxWidth: '1024px', margin: '0 auto' }}>
-          <div style={{ 
-            background: 'linear-gradient(to bottom right, var(--color-primary), #312e81)', 
-            borderRadius: 'var(--radius-xl)', padding: '4rem 2rem', textAlign: 'center', 
-            color: '#fff', boxShadow: 'var(--shadow-high)', position: 'relative', overflow: 'hidden' 
-          }}>
-            <div style={{ position: 'absolute', top: 0, right: 0, transform: 'translate(50%, -50%)', width: '250px', height: '250px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%', filter: 'blur(50px)' }} />
-            
-            <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1.5rem', position: 'relative', zIndex: 1 }}>Ready to secure your fleet?</h2>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '1.125rem', marginBottom: '2.5rem', maxWidth: '600px', margin: '0 auto 2.5rem', position: 'relative', zIndex: 1 }}>
-              Join hundreds of companies reducing accidents and insurance premiums with Vigilant AI.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', position: 'relative', zIndex: 1, flexWrap: 'wrap' }}>
-              <Link to="/login" style={{ padding: '1rem 2.5rem', background: '#fff', color: 'var(--color-primary)', fontWeight: 800, borderRadius: 'var(--radius-lg)', textDecoration: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                Get Started Now
-              </Link>
               
+              {/* Background Glow */}
+              <div style={{ 
+                position: 'absolute', top: '50%', left: '50%', 
+                transform: 'translate(-50%, -50%)', width: '120%', height: '120%',
+                background: 'radial-gradient(circle, var(--color-primary-soft) 0%, transparent 70%)',
+                zIndex: 1, opacity: 0.5
+              }} />
             </div>
+
           </div>
         </div>
       </section>
-    </>
+
+      {/* Capabilities Section */}
+      <section style={{ padding: '80px 2rem', background: 'var(--color-surface-elevated)' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '12px' }}>Capabilities</h2>
+            <h3 style={{ fontSize: '32px', fontWeight: 900, color: 'var(--color-text-primary)' }}>Enterprise Safety Protocols</h3>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+            <FeatureCard 
+              icon={<Eye color="var(--color-primary)" />} 
+              title="Behavioral AI" 
+              desc="Deep-learning models tracking PERCLOS and gaze deviation in 100ms windows."
+            />
+            <FeatureCard 
+              icon={<Globe color="var(--color-info)" />} 
+              title="Real-time Telemetry" 
+              desc="Automatic synchronization of safety events to the central management portal."
+            />
+            <FeatureCard 
+              icon={<Lock color="var(--color-success)" />} 
+              title="Privacy Preserved" 
+              desc="On-device inference ensures no driver video is ever uploaded or stored."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      {/* <footer style={{ padding: '40px 2rem', textAlign: 'center', borderTop: '1px solid var(--color-border)' }}>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', fontWeight: 600 }}>
+          © 2026 Vigilant Driver • Built for FAST-NUCES FYP Evaluation
+        </p>
+      </footer> */}
+    </div>
   );
 }
+
+// --- HELPER SUB-COMPONENTS (Keep logic organized) ---
+
+const StatItem = ({ label, value }) => (
+  <div style={{ padding: '16px', borderRadius: '12px', background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+    <p style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{label}</p>
+    <p style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: 900, color: 'var(--color-text-primary)' }}>{value}</p>
+  </div>
+);
+
+const TextLabel = ({ label, value, color }) => (
+  <div>
+    <p style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{label}</p>
+    <p style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: color }}>{value}</p>
+  </div>
+);
+
+const FeatureCard = ({ icon, title, desc }) => (
+  <div style={{ 
+    padding: '32px', 
+    borderRadius: '20px', 
+    background: 'var(--color-surface)', 
+    border: '1px solid var(--color-border)',
+    transition: 'all 0.2s ease'
+  }}>
+    <div style={{ marginBottom: '20px' }}>{icon}</div>
+    <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: '12px' }}>{title}</h4>
+    <p style={{ fontSize: '15px', color: 'var(--color-text-muted)', lineHeight: 1.5, margin: 0 }}>{desc}</p>
+  </div>
+);
 
 export default HomePage;
