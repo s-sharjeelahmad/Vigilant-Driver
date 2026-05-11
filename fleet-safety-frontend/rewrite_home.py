@@ -1,4 +1,6 @@
-import React from 'react';
+import re
+
+new_content = """import React from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, ShieldCheck, Cpu, BarChart3, ArrowRight, Shield } from 'lucide-react';
 
@@ -61,7 +63,9 @@ function HomePage() {
                   Login to Dashboard
                   <ArrowRight size={18} />
                 </Link>
-                
+                <a href="#contact" className="btn-secondary" style={{ padding: '1rem 2rem', fontSize: '1rem' }}>
+                  Contact Sales
+                </a>
               </div>
             </div>
 
@@ -121,6 +125,18 @@ function HomePage() {
         </div>
       </section>
 
+      {/* Social Proof */}
+      <section style={{ padding: '3rem 2rem', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          <p style={{ textAlign: 'center', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2rem' }}>Trusted by leading logistics fleets</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2rem 4rem', opacity: 0.4, filter: 'grayscale(1)' }}>
+            {['TRANS-LNK', 'GLOBALWAY', 'ROUTEMASTER', 'FLEETCORE', 'CARGOX'].map(brand => (
+              <span key={brand} style={{ fontSize: '1.5rem', fontWeight: 900, fontStyle: 'italic', letterSpacing: '-0.05em', color: 'var(--color-text-primary)' }}>{brand}</span>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features Grid */}
       <section id="features" style={{ padding: '6rem 2rem', background: 'var(--color-bg)' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
@@ -162,7 +178,7 @@ function HomePage() {
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem', position: 'relative', zIndex: 1 }}>
               {[
-                { step: 1, title: "Install Application", desc: "Install application on mobile and start monitoring through camera." },
+                { step: 1, title: "Install Hardware", desc: "Easily mount our plug-and-play AI cameras in any fleet vehicle within minutes." },
                 { step: 2, title: "Monitor Real-time", desc: "Data is streamed to our cloud engine for instant threat detection and analysis." },
                 { step: 3, title: "Take Action", desc: "Receive alerts and use the dashboard to intervene or coach drivers effectively." }
               ].map((item) => (
@@ -175,6 +191,49 @@ function HomePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Security Section */}
+      <section id="security" style={{ padding: '6rem 2rem', background: '#0f172a', color: '#fff', overflow: 'hidden' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '4rem', alignItems: 'center' }}>
+            
+            <div style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '250px', height: '250px', background: 'rgba(59, 130, 246, 0.2)', borderRadius: '50%', filter: 'blur(50px)', pointerEvents: 'none' }} />
+              <div style={{ padding: '2rem', background: 'rgba(30, 41, 59, 0.5)', backdropFilter: 'blur(12px)', borderRadius: 'var(--radius-xl)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ width: '64px', height: '64px', background: 'var(--color-info)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' }}>
+                  <ShieldCheck size={32} color="#fff" />
+                </div>
+                <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '1.5rem', color: '#f8fafc' }}>Enterprise-Grade Security</h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {[
+                    "End-to-end encrypted data transmission",
+                    "99.9% Uptime SLA for critical safety monitoring",
+                    "GDPR & Fleet Privacy Compliant storage"
+                  ].map((text, i) => (
+                    <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: '#cbd5e1' }}>
+                      <ShieldCheck size={20} color="var(--color-success)" style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.875rem' }}>{text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div>
+              <h2 style={{ color: 'var(--color-info)', fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Reliability First</h2>
+              <h3 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1.5rem', color: '#f8fafc', lineHeight: 1.2 }}>Data protection you can trust.</h3>
+              <p style={{ color: '#94a3b8', fontSize: '1.125rem', marginBottom: '2rem', lineHeight: 1.6 }}>
+                We understand that fleet safety involves sensitive data. Vigilant is built with a security-first architecture, ensuring that your company and driver information is protected by industry-leading standards.
+              </p>
+              <a href="#compliance" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-info)', fontWeight: 700, textDecoration: 'none' }}>
+                View Compliance Documentation
+                <ArrowRight size={16} />
+              </a>
+            </div>
+
           </div>
         </div>
       </section>
@@ -197,7 +256,9 @@ function HomePage() {
               <Link to="/login" style={{ padding: '1rem 2.5rem', background: '#fff', color: 'var(--color-primary)', fontWeight: 800, borderRadius: 'var(--radius-lg)', textDecoration: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                 Get Started Now
               </Link>
-              
+              <a href="#contact" style={{ padding: '1rem 2.5rem', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontWeight: 800, borderRadius: 'var(--radius-lg)', textDecoration: 'none' }}>
+                Schedule a Demo
+              </a>
             </div>
           </div>
         </div>
@@ -207,3 +268,8 @@ function HomePage() {
 }
 
 export default HomePage;
+"""
+
+with open('src/pages/HomePage.jsx', 'w', encoding='utf-8') as f:
+    f.write(new_content)
+print("HomePage.jsx rewritten without Tailwind")

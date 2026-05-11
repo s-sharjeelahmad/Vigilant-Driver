@@ -1,4 +1,9 @@
-import SectionHeader from "../components/SectionHeader";
+import re
+
+with open('src/pages/ContactPage.jsx', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+new_content = """import SectionHeader from "../components/SectionHeader";
 
 function ContactPage() {
   return (
@@ -88,3 +93,8 @@ function ContactPage() {
 }
 
 export default ContactPage;
+"""
+
+with open('src/pages/ContactPage.jsx', 'w', encoding='utf-8') as f:
+    f.write(new_content)
+print('ContactPage.jsx Updated')

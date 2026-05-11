@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import SectionHeader from "../components/SectionHeader";
-import CompanySubnav from "../components/CompanySubnav";
+import { Plus, Link as LinkIcon, Trash2, Car } from "lucide-react";
+import ErrorBanner from "../components/ErrorBanner";
+import StatusPill from "../components/StatusPill";
+import { TableSkeleton } from "../components/Skeletons";
+import EmptyState from "../components/EmptyState";
+import ConfirmModal from "../components/ConfirmModal";
+import { useToast } from "../components/ToastContext";
 import { companyApi } from "../lib/apiClient";
-import { clearCompanySession } from "../lib/companySession";
 import { formatDisplayValue } from "../lib/dateFormatter";
 
 const initialVehicle = {
@@ -16,7 +19,6 @@ const initialVehicle = {
 };
 
 function CompanyVehiclesPage() {
-  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [vehicleForm, setVehicleForm] = useState(initialVehicle);
@@ -24,11 +26,11 @@ function CompanyVehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pageError, setPageError] = useState("");
-  const [pageSuccess, setPageSuccess] = useState("");
   const [modalError, setModalError] = useState("");
-  const [modalSuccess, setModalSuccess] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState("add");
+  const [modalMode, setModalMode] = useState("add"); // "add" | "assign"
+  const [vehicleToDelete, setVehicleToDelete] = useState(null);
+  const { showToast } = useToast();
 
   const loadData = async () => {
     setLoading(true);
@@ -68,7 +70,6 @@ function CompanyVehiclesPage() {
   const onAddVehicle = async (event) => {
     event.preventDefault();
     setModalError("");
-    setModalSuccess("");
 
     if (!vehicleForm.vehicle_number.trim()) {
       setModalError("Vehicle number is required.");
@@ -81,12 +82,13 @@ function CompanyVehiclesPage() {
         ...vehicleForm,
         year: vehicleForm.year === "" ? null : Number(vehicleForm.year)
       });
-      setModalSuccess("Vehicle created successfully.");
       setVehicleForm(initialVehicle);
       setShowModal(false);
+      showToast("Vehicle registered successfully.", "success");
       await loadData();
     } catch (err) {
-      setModalError(err.message || "Unable to add vehicle.");
+      setModalError(err.message || "Unable to register vehicle.");
+      showToast("Unable to register vehicle.", "error");
     } finally {
       setSaving(false);
     }
@@ -95,7 +97,6 @@ function CompanyVehiclesPage() {
   const onAssignVehicle = async (event) => {
     event.preventDefault();
     setModalError("");
-    setModalSuccess("");
 
     if (!assignForm.driver_id || !assignForm.vehicle_id) {
       setModalError("Driver ID and vehicle ID are required.");
@@ -105,155 +106,205 @@ function CompanyVehiclesPage() {
     setSaving(true);
     try {
       await companyApi.assignVehicle(assignForm);
-      setModalSuccess("Vehicle assigned successfully.");
       setAssignForm({ driver_id: "", vehicle_id: "" });
       setShowModal(false);
+      showToast("Vehicle successfully assigned to driver.", "success");
       await loadData();
     } catch (err) {
       setModalError(err.message || "Unable to assign vehicle.");
+      showToast("Unable to assign vehicle.", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const onDeleteVehicle = async (vehicleId) => {
+  const executeDeleteVehicle = async () => {
+    if (!vehicleToDelete) return;
     setPageError("");
-    setPageSuccess("");
     try {
-      await companyApi.deleteVehicle(vehicleId);
-      setPageSuccess("Vehicle deleted successfully.");
+      await companyApi.deleteVehicle(vehicleToDelete.vehicle_id);
+      showToast("Vehicle removed successfully.", "success");
       await loadData();
     } catch (err) {
-      setPageError(err.message || "Unable to delete vehicle.");
+      showToast(err.message || "Unable to remove vehicle.", "error");
+    } finally {
+      setVehicleToDelete(null);
     }
-  };
-
-  const handleLogout = () => {
-    clearCompanySession();
-    navigate("/login", { replace: true });
   };
 
   const openModal = (mode) => {
     setModalMode(mode);
     setShowModal(true);
     setModalError("");
-    setModalSuccess("");
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
   };
 
   return (
-    <section className="section">
-      <div className="container container-wide company-page-wrap">
-        <div className={`page-content ${showModal ? "is-blurred" : ""}`}>
-          <div className="company-head">
-            <SectionHeader eyebrow="Company Vehicles" title="Vehicle Management" text="Register vehicles and assign them to company drivers." />
-            <button type="button" className="btn btn-ghost" onClick={handleLogout}>Logout</button>
-          </div>
-
-          <CompanySubnav />
-
-          <article className="card">
-            <div className="card-header">
-              <h3>Vehicle List</h3>
-              <div className="action-row">
-                <button type="button" className="btn btn-primary" onClick={() => openModal("add")}>Add Vehicle</button>
-                <button type="button" className="btn btn-ghost" onClick={() => openModal("assign")}>Assign Vehicle</button>
-              </div>
-            </div>
-            {loading ? <p className="state loading">Loading vehicles...</p> : null}
-            {pageError ? <p className="state error">{pageError}</p> : null}
-            {pageSuccess ? <p className="state success">{pageSuccess}</p> : null}
-
-            {!loading && !pageError ? (
-              <div className="table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Number</th>
-                      <th>Type</th>
-                      <th>Make</th>
-                      <th>Model</th>
-                      <th>Year</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vehicles.length ? vehicles.map((vehicle) => (
-                      <tr key={vehicle.vehicle_id}>
-                        <td>{formatDisplayValue(vehicle.vehicle_number)}</td>
-                        <td>{formatDisplayValue(vehicle.vehicle_type)}</td>
-                        <td>{formatDisplayValue(vehicle.make)}</td>
-                        <td>{formatDisplayValue(vehicle.model)}</td>
-                        <td>{formatDisplayValue(vehicle.year)}</td>
-                        <td>{vehicle.is_active ? "Active" : "Inactive"}</td>
-                        <td><button type="button" className="btn btn-danger" onClick={() => onDeleteVehicle(vehicle.vehicle_id)}>Delete</button></td>
-                      </tr>
-                    )) : (
-                      <tr><td colSpan="7">No data available</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-          </article>
+    <div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 className="ds-heading-1" style={{ margin: 0, color: 'var(--color-text-primary)' }}>Fleet Vehicles</h1>
+          <p className="ds-body" style={{ margin: '0.25rem 0 0 0' }}>Register and manage vehicles across your operations.</p>
         </div>
-
-        {showModal ? (
-          <div className="modal-backdrop" onClick={handleCloseModal}>
-            <div className="modal-card modal-large" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-head">
-                <h3>Vehicle Actions</h3>
-                <button type="button" className="modal-close" onClick={handleCloseModal}>✕</button>
-              </div>
-              <div className="tab-row">
-                <button type="button" className={`btn ${modalMode === "add" ? "btn-primary" : "btn-ghost"}`} onClick={() => setModalMode("add")}>Add Vehicle</button>
-                <button type="button" className={`btn ${modalMode === "assign" ? "btn-primary" : "btn-ghost"}`} onClick={() => setModalMode("assign")}>Assign Vehicle</button>
-              </div>
-
-              {modalError ? <div className="modal-alert error">{modalError}</div> : null}
-              {modalSuccess ? <div className="modal-alert success">{modalSuccess}</div> : null}
-              {modalMode === "add" ? (
-                <form className="admin-form" onSubmit={onAddVehicle}>
-                  <label>Vehicle Number *<input name="vehicle_number" value={vehicleForm.vehicle_number} onChange={onVehicleChange} required /></label>
-                  <label>Vehicle Type<input name="vehicle_type" value={vehicleForm.vehicle_type} onChange={onVehicleChange} /></label>
-                  <label>Make<input name="make" value={vehicleForm.make} onChange={onVehicleChange} /></label>
-                  <label>Model<input name="model" value={vehicleForm.model} onChange={onVehicleChange} /></label>
-                  <label>Year<input type="number" name="year" value={vehicleForm.year} onChange={onVehicleChange} /></label>
-                  <label className="inline-check"><input type="checkbox" name="is_active" checked={vehicleForm.is_active} onChange={onVehicleChange} />Active</label>
-                  <button type="submit" className="btn btn-primary full" disabled={saving}>{saving ? "Saving..." : "Create Vehicle"}</button>
-                </form>
-              ) : (
-                <form className="admin-form" onSubmit={onAssignVehicle}>
-                  <label>
-                    Driver ID *
-                    <select name="driver_id" value={assignForm.driver_id} onChange={onAssignChange} required>
-                      <option value="">Select driver</option>
-                      {drivers.map((driver) => (
-                        <option key={driver.driver_id} value={driver.driver_id}>{driver.full_name || driver.driver_id}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Vehicle ID *
-                    <select name="vehicle_id" value={assignForm.vehicle_id} onChange={onAssignChange} required>
-                      <option value="">Select vehicle</option>
-                      {vehicles.map((vehicle) => (
-                        <option key={vehicle.vehicle_id} value={vehicle.vehicle_id}>{vehicle.vehicle_number || vehicle.vehicle_id}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="submit" className="btn btn-primary full" disabled={saving}>{saving ? "Saving..." : "Assign Vehicle"}</button>
-                </form>
-              )}
-            </div>
-          </div>
-        ) : null}
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button 
+            onClick={() => openModal("assign")}
+            style={{ background: 'var(--color-surface-elevated)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)', padding: '0.6rem 1rem', borderRadius: '6px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <LinkIcon size={18} /> Assign Vehicle
+          </button>
+          <button 
+            onClick={() => openModal("add")}
+            style={{ background: 'var(--color-primary)', color: 'white', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '6px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Plus size={18} /> Register Vehicle
+          </button>
+        </div>
       </div>
-    </section>
+
+      <ErrorBanner message={pageError} />
+
+      <div className="card" style={{ padding: '1.5rem' }}>
+        {loading ? <TableSkeleton /> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Vehicle Tag</th>
+                  <th>Type</th>
+                  <th>Make & Model</th>
+                  <th>Year</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vehicles.length ? vehicles.map((vehicle) => (
+                  <tr key={vehicle.vehicle_id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ background: 'var(--color-surface-elevated)', padding: '0.5rem', borderRadius: '6px' }}><Car size={16} /></div>
+                        <span className="ds-label" style={{ fontWeight: 700, letterSpacing: '0.05em' }}>{formatDisplayValue(vehicle.vehicle_number)}</span>
+                      </div>
+                    </td>
+                    <td>{formatDisplayValue(vehicle.vehicle_type) || "-"}</td>
+                    <td>
+                      {vehicle.make || vehicle.model ? (
+                        <div className="ds-body-small">
+                          {formatDisplayValue(vehicle.make)} {formatDisplayValue(vehicle.model)}
+                        </div>
+                      ) : "-"}
+                    </td>
+                    <td>{formatDisplayValue(vehicle.year) || "-"}</td>
+                    <td>{vehicle.is_active ? <StatusPill status="Active" /> : <StatusPill status="Inactive" />}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button 
+                        onClick={() => setVehicleToDelete(vehicle)}
+                        style={{ background: 'transparent', border: '1px solid var(--color-error)', color: 'var(--color-error)', padding: '0.35rem 0.5rem', borderRadius: '4px', cursor: 'pointer' }}
+                        title="Remove Vehicle"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="6" style={{ padding: 0 }}>
+                      <EmptyState title="No vehicles found" description="There are no vehicles registered in this fleet yet." />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <ConfirmModal
+        isOpen={!!vehicleToDelete}
+        onClose={() => setVehicleToDelete(null)}
+        onConfirm={executeDeleteVehicle}
+        title="Remove Vehicle"
+        message={`Are you sure you want to completely remove vehicle ${vehicleToDelete?.vehicle_number} from the system?`}
+        confirmText="Remove Vehicle"
+        isDestructive={true}
+      />
+
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }} onClick={() => setShowModal(false)}>
+          <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '2rem', boxShadow: 'var(--shadow-high)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              <h2 className="ds-heading-2" style={{ margin: 0 }}>{modalMode === "add" ? "Register Vehicle" : "Assign Driver"}</h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>×</button>
+            </div>
+
+            {/* Segmented Control */}
+            <div style={{ display: 'flex', background: 'var(--color-bg)', padding: '4px', borderRadius: '8px', marginBottom: '1.5rem' }}>
+              <button type="button" onClick={() => setModalMode("add")} style={{ flex: 1, padding: '0.6rem', border: 'none', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', background: modalMode === "add" ? 'var(--color-surface)' : 'transparent', color: modalMode === "add" ? 'var(--color-text-primary)' : 'var(--color-text-muted)', boxShadow: modalMode === "add" ? 'var(--shadow-low)' : 'none' }}>
+                Register New
+              </button>
+              <button type="button" onClick={() => setModalMode("assign")} style={{ flex: 1, padding: '0.6rem', border: 'none', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', background: modalMode === "assign" ? 'var(--color-surface)' : 'transparent', color: modalMode === "assign" ? 'var(--color-text-primary)' : 'var(--color-text-muted)', boxShadow: modalMode === "assign" ? 'var(--shadow-low)' : 'none' }}>
+                Assign Driver
+              </button>
+            </div>
+
+            <ErrorBanner message={modalError} />
+
+            {modalMode === "add" ? (
+              <form onSubmit={onAddVehicle} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <label className="ds-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  License Plate / Tag *
+                  <input name="vehicle_number" value={vehicleForm.vehicle_number} onChange={onVehicleChange} required style={{ padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-primary)' }} placeholder="e.g. ABC-123" />
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <label className="ds-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    Type
+                    <input name="vehicle_type" value={vehicleForm.vehicle_type} onChange={onVehicleChange} style={{ padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-primary)' }} placeholder="e.g. Truck, Van" />
+                  </label>
+                  <label className="ds-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    Year
+                    <input type="number" name="year" value={vehicleForm.year} onChange={onVehicleChange} style={{ padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-primary)' }} placeholder="e.g. 2024" />
+                  </label>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <label className="ds-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    Make
+                    <input name="make" value={vehicleForm.make} onChange={onVehicleChange} style={{ padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-primary)' }} placeholder="e.g. Ford" />
+                  </label>
+                  <label className="ds-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    Model
+                    <input name="model" value={vehicleForm.model} onChange={onVehicleChange} style={{ padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-primary)' }} placeholder="e.g. Transit" />
+                  </label>
+                </div>
+                
+                <button type="submit" disabled={saving} style={{ marginTop: '1rem', background: 'var(--color-primary)', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '6px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                  {saving ? "Registering..." : "Register Vehicle"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={onAssignVehicle} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <label className="ds-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  Select Driver *
+                  <select name="driver_id" value={assignForm.driver_id} onChange={onAssignChange} required style={{ padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
+                    <option value="">-- Choose a driver --</option>
+                    {drivers.map((d) => <option key={d.driver_id} value={d.driver_id}>{d.full_name}</option>)}
+                  </select>
+                </label>
+                <label className="ds-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  Select Vehicle *
+                  <select name="vehicle_id" value={assignForm.vehicle_id} onChange={onAssignChange} required style={{ padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
+                    <option value="">-- Choose a vehicle --</option>
+                    {vehicles.map((v) => <option key={v.vehicle_id} value={v.vehicle_id}>{v.vehicle_number}</option>)}
+                  </select>
+                </label>
+                <button type="submit" disabled={saving} style={{ marginTop: '1rem', background: 'var(--color-primary)', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '6px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                  {saving ? "Assigning..." : "Confirm Assignment"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

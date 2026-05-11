@@ -25,7 +25,7 @@ function Navbar() {
       <div className="container nav-wrap">
         <Link to="/" className="brand" onClick={() => setOpen(false)}>
           <span className="brand-icon"><ShieldCheck size={18} /></span>
-          <span>Vigilant Driver Monitoring and Safety Assurance System</span>
+          <span>Vigilant Driver</span>
         </Link>
 
         <button

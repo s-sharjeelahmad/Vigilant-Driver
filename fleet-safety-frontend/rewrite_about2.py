@@ -1,4 +1,6 @@
-import React from 'react';
+import re
+
+new_content = """import React from 'react';
 import { Shield, Activity, Radar, Github, Linkedin } from "lucide-react";
 
 function AboutPage() {
@@ -69,7 +71,15 @@ function AboutPage() {
             </ul>
           </div>
 
-
+          {/* Featured Illustration */}
+          <div className="card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifySelf: 'center', width: '100%', maxWidth: '500px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-low)' }}>
+            <div style={{ width: '100%', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: '1.5rem', background: 'var(--color-surface-elevated)' }}>
+              <img src="/about-illustration.png" alt="Fleet Safety Analytics Illustration" style={{ width: '100%', height: 'auto', display: 'block' }} />
+            </div>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', fontStyle: 'italic', textAlign: 'center', margin: 0 }}>
+              Real-time monitoring, actionable insights, and safer journeys.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -85,7 +95,7 @@ function AboutPage() {
 
       {/* Philosophy Grid */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '3rem', marginBottom: '6rem', paddingTop: '3rem', borderTop: '1px solid var(--color-border)' }}>
-        <article className="card" style={{ padding: '2rem', border: '1px solid var(--color-border)', background: 'var(--color-surface-elevated)' }}>
+        <article>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ width: '8px', height: '8px', background: 'var(--color-primary)', borderRadius: '50%' }} />
             Mission
@@ -94,7 +104,7 @@ function AboutPage() {
             Make every commercial journey safer through data-backed visibility, proactive alerts, and measurable safety outcomes.
           </p>
         </article>
-        <article className="card" style={{ padding: '2rem', border: '1px solid var(--color-border)', background: 'var(--color-surface-elevated)' }}>
+        <article>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ width: '8px', height: '8px', background: 'var(--color-info)', borderRadius: '50%' }} />
             Problem We Solve
@@ -103,7 +113,7 @@ function AboutPage() {
             Traditional monitoring reacts too late. This platform creates a continuous safety layer where early warning signals surface before risk escalates.
           </p>
         </article>
-        <article className="card" style={{ padding: '2rem', border: '1px solid var(--color-border)', background: 'var(--color-surface-elevated)' }}>
+        <article>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ width: '8px', height: '8px', background: 'var(--color-success)', borderRadius: '50%' }} />
             What Makes It Practical
@@ -149,3 +159,8 @@ function AboutPage() {
 }
 
 export default AboutPage;
+"""
+
+with open('src/pages/AboutPage.jsx', 'w', encoding='utf-8') as f:
+    f.write(new_content)
+print("AboutPage.jsx rewritten")

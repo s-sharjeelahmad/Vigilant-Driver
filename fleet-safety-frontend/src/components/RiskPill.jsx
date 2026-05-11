@@ -1,10 +1,16 @@
+import React from "react";
+
 function RiskPill({ level }) {
   const normalized = String(level || "unknown").toLowerCase();
-  const safeLevel = ["low", "medium", "high", "critical"].includes(normalized)
-    ? normalized
-    : "unknown";
-  const className = `risk-pill ${safeLevel}`;
-  const label = safeLevel === "unknown" ? "N/A" : safeLevel;
+  
+  let type = "inactive";
+  if (normalized === "low") type = "safe";
+  if (normalized === "medium") type = "warning";
+  if (normalized === "high" || normalized === "critical") type = "critical";
+  
+  const className = `status-pill ${type}`;
+  const label = normalized === "unknown" ? "N/A" : normalized;
+  
   return <span className={className}>{label}</span>;
 }
 

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import SectionHeader from "../components/SectionHeader";
+import { Shield, Building2, Users, Activity, Bell, MapPin } from "lucide-react";
 import RiskPill from "../components/RiskPill";
-import AdminSubnav from "../components/AdminSubnav";
+import StatusPill from "../components/StatusPill";
+import { DashboardSkeleton } from "../components/Skeletons";
 import { adminApi } from "../lib/apiClient";
-import { clearAdminSession, getAdminToken } from "../lib/adminSession";
 
 const toNumber = (value, fallback = 0) => {
   const num = Number(value);
@@ -12,19 +11,12 @@ const toNumber = (value, fallback = 0) => {
 };
 
 function AdminDashboardPage() {
-  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = getAdminToken();
-    if (!token) {
-      navigate("/login", { replace: true });
-      return;
-    }
-
     const fetchData = async () => {
       setLoading(true);
       setError("");
@@ -32,7 +24,7 @@ function AdminDashboardPage() {
       try {
         const [dashboardData, companiesData] = await Promise.all([
           adminApi.getDashboard(),
-          adminApi.getCompanies()
+          adminApi.getCompanies().catch(() => [])
         ]);
 
         setDashboard(dashboardData || {});
@@ -45,7 +37,7 @@ function AdminDashboardPage() {
     };
 
     fetchData();
-  }, [navigate]);
+  }, []);
 
   const summary = useMemo(() => {
     const data = dashboard || {};
@@ -62,89 +54,146 @@ function AdminDashboardPage() {
     };
   }, [dashboard, companies.length]);
 
-  const handleLogout = () => {
-    clearAdminSession();
-    navigate("/login", { replace: true });
-  };
+  if (error) {
+    return (
+      <div className="state error" style={{ margin: '2rem' }}>
+        <Shield size={24} style={{ marginBottom: '1rem' }} />
+        <h3>System Error</h3>
+        <p>{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <section className="section">
-      <div className="container container-wide admin-dash-wrap">
-        <div className="admin-dash-head">
-          <SectionHeader
-            eyebrow="Admin Console"
-            title="Vigilant Driver Monitoring and Safety Assurance System"
-            text="Cross-company safety visibility, risk tracking, and operational analytics."
-          />
-          <button type="button" className="btn btn-ghost" onClick={handleLogout}>
-            Logout
-          </button>
+    <div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 className="ds-heading-1" style={{ margin: 0, color: 'var(--color-text-primary)' }}>System Control Center</h1>
+          <p className="ds-body" style={{ margin: '0.25rem 0 0 0' }}>Cross-company safety visibility, risk tracking, and operational analytics.</p>
         </div>
-
-        <AdminSubnav />
-
-        {loading ? <p className="state loading">Loading admin dashboard...</p> : null}
-        {error ? <p className="state error">{error}</p> : null}
-
-        {!loading && !error ? (
-          <>
-            <div className="admin-metric-grid">
-              <article className="card metric-card">
-                <h4>Total Companies</h4>
-                <strong>{summary.totalCompanies}</strong>
-              </article>
-              <article className="card metric-card">
-                <h4>Total Drivers</h4>
-                <strong>{summary.totalDrivers}</strong>
-              </article>
-              <article className="card metric-card">
-                <h4>Total Sessions</h4>
-                <strong>{summary.totalSessions}</strong>
-              </article>
-              <article className="card metric-card">
-                <h4>Total Events</h4>
-                <strong>{summary.totalEvents}</strong>
-              </article>
-              <article className="card metric-card">
-                <h4>Total Alerts</h4>
-                <strong>{summary.totalAlerts}</strong>
-              </article>
-              <article className="card metric-card">
-                <h4>Risk Status</h4>
-                <div className="metric-risk">
-                  <span>{summary.riskScore.toFixed(2)}</span>
-                  <RiskPill level={summary.riskLevel} />
-                </div>
-              </article>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ textAlign: 'right' }}>
+            <div className="ds-caption" style={{ color: 'var(--color-text-muted)' }}>Global Risk Score</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <span className="ds-heading-2" style={{ margin: 0 }}>{summary.riskScore.toFixed(1)}</span>
+              <RiskPill level={summary.riskLevel} />
             </div>
-
-            <div className="admin-secondary-grid">
-              <article className="card">
-                <h3>System Quality Indicators</h3>
-                <p>Average Attention: {summary.avgAttention.toFixed(2)}</p>
-                <p>Average Confidence: {summary.avgConfidence.toFixed(2)}</p>
-              </article>
-
-              <article className="card">
-                <h3>Recent Companies</h3>
-                <ul className="company-list">
-                  {(companies.length ? companies.slice(0, 6) : []).map((company, idx) => (
-                    <li key={`${company.company_name || "company"}-${idx}`}>
-                      <div>
-                        <strong>{company.company_name || "N/A"}</strong>
-                        <p>{company.city || "N/A"}</p>
-                      </div>
-                      <span>{company.subscription_status || "N/A"}</span>
-                    </li>
-                  ))}
-                </ul>
-                {!companies.length ? <p className="state neutral">No data available</p> : null}
-              </article>
-            </div>
-          </>
-        ) : null}
+          </div>
+        </div>
       </div>
-    </section>
+
+      {loading ? (
+        <DashboardSkeleton />
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            
+            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                <span className="ds-label">Active Companies</span>
+                <Building2 size={18} />
+              </div>
+              <div className="ds-display-small">{summary.totalCompanies}</div>
+            </div>
+            
+            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                <span className="ds-label">Total Drivers</span>
+                <Users size={18} />
+              </div>
+              <div className="ds-display-small">{summary.totalDrivers}</div>
+            </div>
+
+            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                <span className="ds-label">Active Sessions</span>
+                <Activity size={18} />
+              </div>
+              <div className="ds-display-small">{summary.totalSessions}</div>
+            </div>
+
+            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                <span className="ds-label">Critical Alerts</span>
+                <Bell size={18} color="var(--color-error)" />
+              </div>
+              <div className="ds-display-small">{summary.totalAlerts}</div>
+            </div>
+
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
+            
+            {/* Recent Companies */}
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <h3 className="ds-heading-3" style={{ margin: '0 0 1.5rem 0', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem' }}>Registered Companies</h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {(companies.length ? companies.slice(0, 5) : []).map((company, idx) => (
+                  <div key={`${company.company_id || idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--color-surface-elevated)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ width: '40px', height: '40px', background: 'var(--color-primary-subtle)', color: 'var(--color-primary)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+                        {company.company_name ? company.company_name.charAt(0).toUpperCase() : "C"}
+                      </div>
+                      <div>
+                        <div className="ds-label" style={{ fontWeight: 600 }}>{company.company_name || "Unknown Company"}</div>
+                        <div className="ds-caption" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-text-muted)' }}>
+                          <MapPin size={12} /> {company.city || "No location"}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      {company.subscription_status === "active" ? <StatusPill status="Active" /> : <StatusPill status="Suspended" />}
+                    </div>
+                  </div>
+                ))}
+                {!companies.length && (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>No companies registered yet.</div>
+                )}
+              </div>
+            </div>
+
+            {/* System Health */}
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <h3 className="ds-heading-3" style={{ margin: '0 0 1.5rem 0', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem' }}>AI Model Performance</h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                
+                {/* Attention Score */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span className="ds-label">Average Fleet Attention</span>
+                    <span className="ds-label" style={{ fontWeight: 700 }}>{(summary.avgAttention * 100).toFixed(1)}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--color-surface-elevated)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(100, Math.max(0, summary.avgAttention * 100))}%`, height: '100%', background: 'var(--color-primary)', borderRadius: '4px' }}></div>
+                  </div>
+                </div>
+
+                {/* Confidence Score */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span className="ds-label">Inference Confidence</span>
+                    <span className="ds-label" style={{ fontWeight: 700 }}>{(summary.avgConfidence * 100).toFixed(1)}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--color-surface-elevated)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(100, Math.max(0, summary.avgConfidence * 100))}%`, height: '100%', background: 'var(--color-success)', borderRadius: '4px' }}></div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--color-surface-elevated)', borderRadius: '8px', borderLeft: '3px solid var(--color-info)' }}>
+                  <p className="ds-caption" style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
+                    System quality indicators represent the real-time average metrics reported from edge devices across the fleet network. High confidence indicates optimal camera placement and model performance.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
